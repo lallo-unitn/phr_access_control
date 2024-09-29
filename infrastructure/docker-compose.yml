@@ -1,0 +1,50 @@
+version: '3.9'
+services:
+#  application_server:
+#    image: quay.io/wildfly/wildfly:30.0.0.Final-jdk17
+#    depends_on: [mariadb]
+#    command: >
+#      bash -c "/opt/jboss/wildfly/bin/add-user.sh admin admin --silent
+#      && /opt/jboss/wildfly/bin/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0"
+#    container_name: application_server
+#    network_mode: host
+#    restart: always
+#    stdin_open: true
+#    tty: true
+#    environment:
+#      - WILDFLY_PASS=admin
+#      - WILDFLY_USER=admin
+#      - WILDFLY_PASSWORD=admin 
+#    volumes:
+#      - type: bind
+#        source: ./services/application_server/configuration
+#        target: /opt/jboss/wildfly/standalone/configuration
+#      - type: bind
+#        source: ./services/application_server/modules/com
+#        target: /opt/jboss/wildfly/modules/com
+#      - type: bind
+#        source: ./adv_prog_project/target/adv_prog_project-1.0-SNAPSHOT.war
+#        target: /opt/jboss/wildfly/standalone/deployments/adv_prog_project_war.war
+
+  mariadb:
+    image: mariadb:latest
+    restart: always
+    network_mode: host
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_USER: user
+      MARIADB_PASSWORD: user
+    volumes:
+      - ./services/mariadb/docker-entrypoint-initdb.d/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - type: bind
+        source: ./services/mariadb/mysql/conf.d/server.cnf
+        target: /etc/mysql/conf.d/server.cnf
+      - type: bind
+        source: ./services/mariadb/mysql/encryption
+        target: /etc/mysql/conf.d/encryption
+
+volumes:
+  configuration:
+    name: configuration
+  
+

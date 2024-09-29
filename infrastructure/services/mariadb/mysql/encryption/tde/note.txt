@@ -1,0 +1,13 @@
+Encrypting the tablespaces keys with sha1 with openssl generates a deprecated key derivation function warning. Unfortunately, MariaDB key manager does not currently support newer standards. See bug report 
+
+https://jira.mariadb.org/browse/MDEV-20181 
+
+and also 
+
+https://stackoverflow.com/questions/71029299/mariadb-10-6-3-fails-to-start-after-enabling-file-key-management-encryption
+
+Furthermore, the File Key Management plugin does not currently support key rotation. See bug report
+
+https://jira.mariadb.org/browse/MDEV-20713
+
+Key file is encrypted with cbc, tables with ctr, logs with gcm
