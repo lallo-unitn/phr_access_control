@@ -1,3 +1,7 @@
+import hashlib
+
+from charm.toolbox.symcrypto import SymmetricCryptoAbstraction
+
 import controllers.constant as const
 from charm.core.math.pairing import GT
 from charm.toolbox.pairinggroup import PairingGroup
@@ -72,14 +76,44 @@ if __name__ == "__main__":
 
     user_keys = {'GID': id_bob, 'keys': merge_dicts(user_keys_hospital, user_keys_phr)}
 
-    msg = ma_abe_init.get_pairing_group().random(GT)
-    print("Message: ", msg)
+    # Your string message to encrypt
+    message = "This is a secret message"
 
+    # Generate a random session key (an element in GT)
+    session_key = ma_abe_init.get_pairing_group().random(GT)
+
+    # Derive a symmetric key from the session key
+    session_key_bytes = ma_abe_init.get_pairing_group().serialize(session_key)
+    sym_key = hashlib.sha256(session_key_bytes).digest()
+    sym_crypto = SymmetricCryptoAbstraction(sym_key)
+
+    # Encrypt the message using the symmetric key
+    ciphertext = sym_crypto.encrypt(message)
+
+    # Encrypt the session key using the ABE scheme
     policy = '((PATIENT@PHR and DOCTOR@HOSPITAL))'
+    encrypted_session_key = ma_abe_init.encrypt_msg(policy, session_key)
 
-    cipher_text = ma_abe_init.encrypt_msg(policy, msg)
-    print("Cipher Text: ", cipher_text)
+    # Package the encrypted session key and ciphertext
+    final_cipher = {
+        'encrypted_session_key': encrypted_session_key,
+        'ciphertext': ciphertext
+    }
 
-    rec_msg_1 = ma_abe_init.decrypt_msg(user_keys, cipher_text)
-    assert msg == rec_msg_1, "FAILED Decryption: message is incorrect"
+    print("Final Cipher: ", final_cipher)
+
+    # Decryption process
+    # Decrypt the session key using the ABE scheme
+    decrypted_session_key = ma_abe_init.decrypt_msg(user_keys, final_cipher['encrypted_session_key'])
+
+    # Derive the symmetric key from the decrypted session key
+    decrypted_session_key_bytes = ma_abe_init.get_pairing_group().serialize(decrypted_session_key)
+    sym_key = hashlib.sha256(decrypted_session_key_bytes).digest()
+    sym_crypto = SymmetricCryptoAbstraction(sym_key)
+
+    # Decrypt the message using the symmetric key
+    decrypted_message = sym_crypto.decrypt(final_cipher['ciphertext']).decode('utf-8')
+
+    print("Decrypted Message: ", decrypted_message)
+    assert message == decrypted_message, "FAILED Decryption: message is incorrect"
     print("Successful Decryption!!!")
