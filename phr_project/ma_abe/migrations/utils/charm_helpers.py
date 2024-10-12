@@ -1,3 +1,4 @@
+from charm.core.math.pairing import GT
 from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
 import ma_abe.migrations.utils.constants as const
@@ -14,6 +15,12 @@ class CharmMAABEHelper:
     # gp = {'g1': g1, 'g2': g2, 'egg': egg, 'H': H, 'F': F}
     def setup(self):
         self.__public_parameters = self.__ma_abe.setup()
+
+    def generate_session_key(self):
+        return self.__group.random(GT)
+
+    def get_pairing_group(self):
+        return self.__group
 
     # returns
     # pk = {'name': name, 'egga': egga, 'gy': gy} and
