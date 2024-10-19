@@ -8,54 +8,6 @@ from ma_abe.migrations.utils.charm_helpers import CharmMAABEHelper
 class MAABEService:
     def __init__(self):
         self.helper = CharmMAABEHelper()
-        # self._initialize_session_key()
-        # map session keys to policy
-        # self.__policy_enc_keys = {}
-
-    # # Generate the public key and master keys
-    # def _initialize_session_key(self):
-    #     session_key = self.helper.generate_session_key()
-    #     return session_key
-    #
-    # # Derive a symmetric key from the session key
-    # def __get_symmetric_key(self, session_key):
-    #     session_key_bytes = self.helper.get_pairing_group().serialize(session_key)
-    #     sym_key = hashlib.sha256(session_key_bytes).digest()
-    #     # A large number of the schemes can only encrypt group elements and do not provide an efficient mechanism for
-    #     # encoding byte in those elements. As such we don’t pick a symmetric key and encrypt it asymmetrically.
-    #     # Rather, we hash a random group element to get the symmetric key.
-    #     return SymmetricCryptoAbstraction(sym_key)
-    #
-    # # Encrypt the session key using the ABE scheme and store it in the enc_session_keys dictionary
-    # def set_abe_encrypted_session_key(self, policy, session_key):
-    #     # if policy is not in the form %s@%s then throw an error
-    #     if '@' not in policy:
-    #         raise ValueError('Invalid policy format')
-    #     enc_session_key = self.helper.encrypt(session_key, policy)
-    #     self.__enc_session_keys[policy] = enc_session_key
-    #
-    # def get_abe_encrypted_session_key(self, policy):
-    #     return self.__enc_session_keys[policy]
-    #
-    # # Encrypt the file using the symmetric key and
-    # # return the encrypted file and the ABE encrypted session key
-    # def encrypt_file(self, file, policy, session_key):
-    #     sym_key = self.__get_symmetric_key(session_key)
-    #
-    #     if policy not in self.__enc_session_keys:
-    #         self.set_abe_encrypted_session_key(policy, session_key)
-    #
-    #     abe_enc_session_key = self.get_abe_encrypted_session_key(policy)
-    #     sym_enc_file = sym_key.encrypt(file)
-    #     return {'abe_enc_session_key': abe_enc_session_key, 'sym_enc_file': sym_enc_file}
-    #
-    # # Decrypt the file using the symmetric key
-    # def decrypt_file(self, user_keys, enc_file):
-    #     sym_key = self.__get_symmetric_key(self.helper.decrypt(user_keys, enc_file['abe_enc_session_key']))
-    #     return sym_key.decrypt(enc_file['sym_enc_file'])
-    #
-    # def decrypt_session_key(self, user_keys, enc_session_key):
-    #     return self.helper.decrypt(user_keys, enc_session_key)
 
     def encrypt(self, file, policy):
         key = self.helper.get_random_group_element()
