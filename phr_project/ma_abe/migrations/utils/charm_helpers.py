@@ -1,3 +1,4 @@
+from attr.validators import instance_of
 from charm.core.math.pairing import GT
 from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
@@ -25,7 +26,11 @@ class CharmMAABEHelper:
 
         for auth, attrs in self.auth_attrs.items():
             (public_key, secret_key) = self.__ma_abe.authsetup(self.__public_parameters, auth)
-            print(f"Master Secret Key for {auth}: {secret_key}")
+            # print(f"Public Key for {auth}: {self.__group.serialize(public_key['egga'])}")
+            # print(f"Public Key for {auth}: {self.__group.serialize(public_key['gy'])}")
+            # print(f"Public Key for {auth}: {self.__group.serialize(secret_key['alpha'])}")
+            # print(f"Public Key for {auth}: {self.__group.serialize(secret_key['y'])}")
+            # print(f"Master Secret Key for {auth}: {secret_key}")
             self.__key_pairs[auth] = {
                 'public_key': public_key,
                 'secret_key': secret_key
@@ -36,6 +41,12 @@ class CharmMAABEHelper:
     # gp = {'g1': g1, 'g2': g2, 'egg': egg, 'H': H, 'F': F}
     def setup(self):
         self.__public_parameters = self.__ma_abe.setup()
+        # g1_str = self.__group.serialize(self.__public_parameters['g1'])
+        # print(type(g1_str))
+        # print(f"Public Parameters: {g1_str}")
+        # g1 = self.__group.deserialize(g1_str)
+        # print(f"Public Parameters: {g1}")
+        print(f"Public Parameters: {self.__public_parameters}")
 
     def get_random_group_element(self):
         return self.__group.random(GT)
