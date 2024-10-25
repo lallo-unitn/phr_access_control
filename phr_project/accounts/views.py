@@ -4,6 +4,9 @@ from django.contrib import messages
 from .forms import UserRegisterForm
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
+from django.http import JsonResponse
+
 
 def register(request):
     if request.method == 'POST':
@@ -28,3 +31,10 @@ class CustomLogoutView(auth_views.LogoutView):
 @login_required
 def profile(request):
     return render(request, 'accounts/profile.html')
+
+
+def get_user_keys(request, uuid: str):
+    return JsonResponse({'foo': uuid})
+
+def handle_phr(request, uuid: str):
+    return JsonResponse({'foo':'bar'})
