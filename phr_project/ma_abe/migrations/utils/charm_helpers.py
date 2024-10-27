@@ -22,8 +22,9 @@ class CharmMAABEHelper:
             'HEALTH_CLUB': ['HEALTHCLUBTRAINER@HEALTHCLUB']
         }
 
-        self.setup()
 
+        if self.__public_keys is None:
+            self.setup()
         for auth, attrs in self.auth_attrs.items():
             (public_key, secret_key) = self.__ma_abe.authsetup(self.__public_parameters, auth)
             # print(f"Public Key for {auth}: {self.__group.serialize(public_key['egga'])}")
@@ -101,3 +102,10 @@ class CharmMAABEHelper:
     # satisfied with the user's attributes.
     def decrypt(self, user_keys, cipher_text):
         return self.__ma_abe.decrypt(self.__public_parameters, user_keys, cipher_text)
+
+
+    def unpack_attribute(self, user_attr):
+        return self.__ma_abe.unpack_attribute(user_attr)
+
+    def merge_dicts(self, dict1, dict2):
+        return {**dict1, **dict2}
