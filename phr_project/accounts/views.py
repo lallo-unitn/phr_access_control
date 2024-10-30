@@ -43,29 +43,29 @@ def get_user_secret_key(request, uuid: str):
     #   depending on what type of person he is (e.g. Patient, Doctor)
     #
     #   The server will return the user master secret key and the user id.
+    if request.method == 'GET':
+        ma_abe_service = MAABEService()
 
-    ma_abe_service = MAABEService()
+        user_attrs: List = __get_test_user_attr()
+        user_auth_attrs: Mapping[str, List] = {}
 
-    user_attrs: List = __get_test_user_attr()
-    user_auth_attrs: Mapping[str, List] = {}
+        # iterate on the user attributes
+        for user_attr in user_attrs:
+            attr_name, attr_auth, attr_id = ma_abe_service.helper.unpack_attribute(user_attr)
+            if attr_auth not in user_auth_attrs:
+                user_auth_attrs[attr_auth] = []
+            user_auth_attrs[attr_auth].append(user_attr)
 
-    # iterate on the user attributes
-    for user_attr in user_attrs:
-        attr_name, attr_auth, attr_id = ma_abe_service.helper.unpack_attribute(user_attr)
-        if attr_auth not in user_auth_attrs:
-            user_auth_attrs[attr_auth] = []
-        user_auth_attrs[attr_auth].append(user_attr)
+        user_keys_by_auth: Mapping[str, List] = {}
 
-    user_keys_by_auth: Mapping[str, List] = {}
+        for auth, user_attrs in user_auth_attrs.items():
+            user_keys_by_auth[auth] = ma_abe_service.helper.gen_user_key(auth, uuid, user_attrs)
 
-    for auth, user_attrs in user_auth_attrs.items():
-        user_keys_by_auth[auth] = ma_abe_service.helper.gen_user_key(auth, uuid, user_attrs)
+        merged_user_keys = ma_abe_service.helper.merge_dicts(*user_keys_by_auth.values())
 
-    merged_user_keys = ma_abe_service.helper.merge_dicts(*user_keys_by_auth.values())
+        user_abe_keys = {'GID': uuid, 'keys': merged_user_keys}
 
-    user_abe_keys = {'GID': uuid, 'keys': merged_user_keys}
-
-    return JsonResponse(user_abe_keys)
+        return JsonResponse(user_abe_keys)
 
 def get_user_keys(request, uuid: str):
     # API Endpoint 2
@@ -76,14 +76,14 @@ def get_user_keys(request, uuid: str):
     #
     #   For a GET request the server will return the encrypted AES keys
     #   of the requested user (if they exist).
+    if request.method == 'GET':
+        messages: dict = __get_test_enc_messages()
+        enc_aes_keys: dict = {}
 
-    messages: dict = __get_test_enc_messages()
-    enc_aes_keys: dict = {}
+        for message_id, enc_message in messages.items():
+            enc_aes_keys[message_id] = enc_message['abe_policy_enc_key']
 
-    for message_id, enc_message in messages.items():
-        enc_aes_keys[message_id] = enc_message['abe_policy_enc_key']
-
-    return JsonResponse(enc_aes_keys)
+        return JsonResponse(enc_aes_keys)
 
 def get_user_record(request, uuid: str):
     # API Endpoint 3
@@ -94,12 +94,12 @@ def get_user_record(request, uuid: str):
     #
     #   For a GET request the server will return the encrypted AES keys
     #   of the requested user (if they exist).
+    if request.method == 'GET':
+        messages: dict = __get_test_enc_messages()
+        enc_record: dict = {}
 
-    messages: dict = __get_test_enc_messages()
-    enc_record: dict = {}
+        for message_id, enc_message in messages.items():
+            enc_record[message_id] = enc_message['sym_enc_file']
 
-    for message_id, enc_message in messages.items():
-        enc_record[message_id] = enc_message['sym_enc_file']
-
-    return JsonResponse(enc_record)
+        return JsonResponse(enc_record)
 
