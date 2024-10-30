@@ -3,15 +3,17 @@ from django.db import models
 # Authority with Keys
 
 class SecKey(models.Model):
+    id = models.AutoField(primary_key=True)
     alpha_serial = models.BinaryField()
     y_serial = models.BinaryField()
 
 class PubKey(models.Model):
+    id = models.AutoField(primary_key=True)
     egga_serial = models.BinaryField()
     gy_serial = models.BinaryField()
 
 class Authority(models.Model):
-    id = models.CharField(max_length=255, primary_key=True)
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     sec_key = models.OneToOneField(SecKey, on_delete=models.CASCADE)
     pub_key = models.OneToOneField(PubKey, on_delete=models.CASCADE)
