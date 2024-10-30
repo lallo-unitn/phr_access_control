@@ -1,5 +1,6 @@
 import hashlib
 import pickle
+from typing import List, Mapping
 
 from charm.toolbox.symcrypto import SymmetricCryptoAbstraction
 from charm.schemes.abenc.abenc_maabe_rw15 import merge_dicts
@@ -39,15 +40,30 @@ if __name__ == "__main__":
 
     ma_abe_service = MAABEService()
     id_bob = "bob"
-    usr_attrs_hospital = ['DOCTOR@HOSPITAL']
-    usr_attrs_phr = ['PATIENT@PHR_1']
-    user_keys_hospital = ma_abe_service.helper.gen_user_key('HOSPITAL', id_bob, usr_attrs_hospital)
-    user_keys_phr = ma_abe_service.helper.gen_user_key('PHR', id_bob, usr_attrs_phr)
 
-    user_keys_bob = {'GID': id_bob, 'keys': merge_dicts(user_keys_hospital, user_keys_phr)}
+    user_auth_attrs: Mapping[str, List] = {}
+
+    user_attrs = ['DOCTOR@HOSPITAL', 'PATIENT@PHR_1']
+
+    # iterate on the user attributes
+    for user_attr in user_attrs:
+        attr_name, attr_auth, attr_id = ma_abe_service.helper.unpack_attribute(user_attr)
+        if attr_auth not in user_auth_attrs:
+            user_auth_attrs[attr_auth] = []
+        user_auth_attrs[attr_auth].append(user_attr)
+
+    user_keys_by_auth: Mapping[str, List] = {}
+
+    for auth, user_attrs in user_auth_attrs.items():
+        user_keys_by_auth[auth] = ma_abe_service.helper.gen_user_key(auth, id_bob, user_attrs)
+
+    merged_user_keys = ma_abe_service.helper.merge_dicts(*user_keys_by_auth.values())
+
+    user_keys_bob = {'GID': id_bob, 'keys': merged_user_keys}
 
     id_alice = "alice"
     usr_attrs_employer = ['PATIENT@PHR_2']
+    usr_attrs_phr = ['PATIENT@PHR_1']
     usr_attrs_insurance = ['INSURANCEREP@INSURANCE']
     user_keys_insurance = ma_abe_service.helper.gen_user_key('INSURANCE', id_alice, usr_attrs_insurance)
     user_keys_phr_2 = ma_abe_service.helper.gen_user_key('PHR', id_alice, usr_attrs_phr)

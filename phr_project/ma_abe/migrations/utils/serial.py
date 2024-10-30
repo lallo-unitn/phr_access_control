@@ -28,14 +28,11 @@ def serialize_encrypted_aes_key(encrypted_data, group):
     return pickle.dumps(serialized_data)
 
 
-def serialize_encrypted_data(self, enc_data):
+def serialize_encrypted_data(enc_data):
     # Pickle the dictionary into a binary format
     return pickle.dumps(enc_data)
 
 
-def deserialize_encrypted_data(self, pickled_data):
+def deserialize_encrypted_data(pickled_data):
     # Unpickle the data to retrieve the original dictionary structure
     return pickle.loads(pickled_data)
-
-
-
