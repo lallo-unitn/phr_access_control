@@ -4,7 +4,7 @@ from typing import List, Mapping
 from django.shortcuts import render, redirect
 from django.contrib import messages
 
-from ma_abe.services import MAABEService
+from ma_abe.services.ma_abe_service import MAABEService
 from .forms import UserRegisterForm
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
