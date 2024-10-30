@@ -2,6 +2,7 @@
 from typing import List, Mapping
 
 from accounts.api_dummy_data.dummy import __get_test_enc_messages, __get_test_user_attr
+from accounts.models import AesKeyEncWithAbe, Message
 #from django.shortcuts import render, redirect
 #from django.contrib import messages
 
@@ -10,6 +11,7 @@ from ma_abe.services.ma_abe_service import MAABEService
 #from django.contrib.auth import views as auth_views
 #from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+import json
 
 
 # def register(request):
@@ -67,7 +69,12 @@ def get_user_secret_key(request, uuid: str):
 
         return JsonResponse(user_abe_keys)
 
-def get_user_keys(request, uuid: str):
+def get_user_keys(request, uuid: str, message_id = None):
+    # PUT expecting a message_id and JSON { "c_serial": "R2VuZXJhdGVkU2VyaWFsRGF0YQ==" }
+    # serialized using ma_abe.utils.serial.serialize_encrypted_aes_key
+
+    # Same for POST but without message_id
+
     # API Endpoint 2
     # --------------
     #   The client will either perform a GET request in order to retrieve
@@ -84,6 +91,64 @@ def get_user_keys(request, uuid: str):
             enc_aes_keys[message_id] = enc_message['abe_policy_enc_key']
 
         return JsonResponse(enc_aes_keys)
+
+    elif request.method == 'POST':
+
+        try:
+            # Parse JSON data from the request body
+            data = json.loads(request.body)
+            # Validate required fields
+            if 'c_serial' not in data:
+                return JsonResponse({"error": "Missing 'c_serial' field"}, status=400)
+            # Create AesKeyEncWithAbe instance
+            aes_key_enc_with_abe = AesKeyEncWithAbe(
+                c_serial=data['c_serial']
+            )
+            # Save the instance to the database
+            aes_key_enc_with_abe.save()
+            # Return success response with the created ID
+            return JsonResponse({"message": "AesKeyEncWithAbe created", "id": aes_key_enc_with_abe.id}, status=201)
+
+        except json.JSONDecodeError:
+            # Handle JSON parsing error
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    elif request.method == 'PUT' and message_id is not None:
+        try:
+            # Find the message by its ID
+            try:
+                message = Message.objects.get(pk=message_id)
+            except Message.DoesNotExist:
+                return JsonResponse({"error": "Message not found"}, status=404)
+
+            # Parse JSON data from the request body
+            data = json.loads(request.body)
+
+            # Update fields based on provided data
+            if 'aes_enc_message' in data:
+                message.aes_enc_message = data['aes_enc_message']
+            if 'message_type' in data:
+                if data['message_type'] in dict(Message.MESSAGE_TYPE_CHOICES):
+                    message.message_type = data['message_type']
+                else:
+                    return JsonResponse({"error": "Invalid message type"}, status=400)
+            if 'aes_key_enc_with_abe' in data:
+                try:
+                    aes_key = AesKeyEncWithAbe.objects.get(pk=data['aes_key_enc_with_abe'])
+                    message.aes_key_enc_with_abe = aes_key
+                except AesKeyEncWithAbe.DoesNotExist:
+                    return JsonResponse({"error": "AesKeyEncWithAbe not found"}, status=404)
+
+            # Save the updated message
+            message.save()
+
+            return JsonResponse({"message": "Message updated successfully"}, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
 
 def get_user_record(request, uuid: str):
     # API Endpoint 3
