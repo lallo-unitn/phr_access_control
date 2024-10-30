@@ -1,8 +1,7 @@
-from attr.validators import instance_of
 from charm.core.math.pairing import GT
 from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
-import ma_abe.migrations.utils.constants as const
+import ma_abe.utils.constants as const
 
 class CharmMAABEHelper:
     def __init__(self):

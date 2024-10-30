@@ -1,11 +1,10 @@
 import hashlib
-import pickle
 from typing import List, Mapping
 
 from charm.toolbox.symcrypto import SymmetricCryptoAbstraction
 from charm.schemes.abenc.abenc_maabe_rw15 import merge_dicts
-from ma_abe.migrations.utils.charm_helpers import CharmMAABEHelper
-from ma_abe.migrations.utils.serial import serialize_encrypted_aes_key, deserialize_encrypted_aes_key, \
+from ma_abe.utils.charm_helpers import CharmMAABEHelper
+from ma_abe.utils.serial import serialize_encrypted_aes_key, deserialize_encrypted_aes_key, \
     serialize_encrypted_data, deserialize_encrypted_data
 
 
