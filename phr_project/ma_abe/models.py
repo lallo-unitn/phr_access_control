@@ -1,66 +1,69 @@
-import pickle
-import json
-
 from django.db import models
-from django.contrib.auth.models import User
 
+# Authority with Keys
 
-class UserRole(models.Model):
-    id = models.CharField(max_length=255, unique=True)
+class SecKey(models.Model):
+    alpha_serial = models.BinaryField()
+    y_serial = models.BinaryField()
+
+class PubKey(models.Model):
+    egga_serial = models.BinaryField()
+    gy_serial = models.BinaryField()
+
+class Authority(models.Model):
+    id = models.CharField(max_length=255, primary_key=True)
     name = models.CharField(max_length=255)
-    user_attributes = models.JSONField(default=list)
-    usk = models.JSONField(default=list)
+    sec_key = models.OneToOneField(SecKey, on_delete=models.CASCADE)
+    pub_key = models.OneToOneField(PubKey, on_delete=models.CASCADE)
+    AUTHORITY_TYPE_CHOICES = [
+        ('HOSPITAL', 'Hospital'),
+        ('HEALTH_CLUB', 'Health Club'),
+        ('INSURANCE_COMPANY', 'Insurance Company'),
+        ('WORK_COMPANY', 'Work Company'),
+    ]
+    authority_type = models.CharField(max_length=20, choices=AUTHORITY_TYPE_CHOICES)
+    attributes = models.JSONField(default=list)
 
-    class Meta:
-        abstract = True
-
-
-class Patient(UserRole):
-    health_data = models.JSONField()
-
-    def __str__(self):
-        return self.full_name
-
-
-class Hospital(models.Model):
+class AuthorityRep(models.Model):
+    rep_id = models.AutoField(primary_key=True)
+    authority = models.ForeignKey(Authority, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    patients = models.ManyToManyField(Patient, related_name='hospitals')
-
-    ask = models.JSONField(default=list)  # Authority Secret Key for generating USKs
-    public_key = models.JSONField(default=list)  # Public Key for encryption
-
-    def __str__(self):
-        return self.name
-
-
-class Doctor(UserRole):
-    patients = models.ManyToManyField(Patient, related_name='doctors')
-
-    def __str__(self):
-        return self.user.username
+    REP_TYPE_CHOICES = [
+        ('DOCTOR', 'Doctor'),
+        ('INSURANCE_REP', 'Insurance Representative'),
+        ('WORK_REP', 'Employer'),
+        ('HEALTH_CLUB_REP', 'Health Club Representative'),
+    ]
+    rep_type = models.CharField(max_length=25, choices=REP_TYPE_CHOICES)
+    attributes = models.JSONField(default=list)
 
 
-class Insurance(models.Model):
-    patients = models.ManyToManyField(Patient, related_name='insurance_providers')
+# Patient Models
 
-
-    def __str__(self):
-        return self.name
-
-
-class Employer(UserRole):
-    employers = models.ManyToManyField(Patient, related_name='employers')
-
-    def __str__(self):
-        return self.name
-
-
-
-class HealthClub(models.Model):
+class Patient(models.Model):
+    patient_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    members = models.ManyToManyField(Patient, related_name='health_clubs')
+    attributes = models.JSONField(default=list)
 
-    ask = models.JSONField(default=list)  # Authority Secret Key for generating USKs
-    public_key = models.JSONField(default=list)  # Public Key for encryption
-    def __str__(self):
-        return self.name
+
+class PatientRep(models.Model):
+    rep = models.ForeignKey(AuthorityRep, on_delete=models.CASCADE)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+
+# Message and Encryption Models
+
+class AesKeyEncWithAbe(models.Model):
+    id = models.AutoField(primary_key=True)
+    c_serial = models.BinaryField()
+
+class Message(models.Model):
+    message_id = models.AutoField(primary_key=True)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    aes_enc_message = models.BinaryField()
+    aes_key_enc_with_abe = models.ForeignKey(AesKeyEncWithAbe, on_delete=models.CASCADE)
+    MESSAGE_TYPE_CHOICES = [
+        ('HEALTH', 'Health'),
+        ('TRAINING', 'Training'),
+    ]
+    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
+
