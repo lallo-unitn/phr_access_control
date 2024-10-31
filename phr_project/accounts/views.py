@@ -2,9 +2,9 @@
 
 from django.views.decorators.csrf import csrf_exempt
 
-from accounts.services.user_service import post_user_keys, put_user_keys
-
 from django.http import JsonResponse
+
+from accounts.services import user_service
 
 # API Endpoint 1
 # --------------
@@ -13,8 +13,7 @@ from django.http import JsonResponse
 #
 #   The server will return the user master secret key and the user id.
 def get_user_secret_key(request, uuid: str):
-    return get_user_secret_key(request, uuid)
-
+    return user_service.get_user_secret_key(request, uuid)
 
 # API Endpoint 2
 # --------------
@@ -31,17 +30,16 @@ def get_user_secret_key(request, uuid: str):
 def get_user_keys(request, uuid: str, message_id = None):
 
     if request.method == 'GET':
-        return get_user_keys(request, uuid, message_id)
+        return user_service.get_user_keys(request, uuid, message_id)
 
     elif request.method == 'POST':
-        return post_user_keys(request, uuid, message_id)
+        return user_service.post_user_keys(request, uuid, message_id)
 
     elif request.method == 'PUT' and message_id is not None:
-        return put_user_keys(request, uuid, message_id)
+        return user_service.put_user_keys(request, uuid, message_id)
 
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
-
 
 # API Endpoint 3
 # --------------
@@ -52,5 +50,5 @@ def get_user_keys(request, uuid: str, message_id = None):
 #   For a GET request the server will return the encrypted AES keys
 #   of the requested user (if they exist).
 def get_user_record(request, uuid: str):
-    return get_user_record(request, uuid)
+    return user_service.get_user_record(request, uuid)
 

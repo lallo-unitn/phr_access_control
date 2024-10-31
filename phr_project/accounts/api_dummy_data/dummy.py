@@ -1,5 +1,4 @@
-from ma_abe.services.ma_abe_service import MAABEService
-
+from accounts.services.ma_abe_service import MAABEService
 
 def __get_test_user_attr():
     return ['DOCTOR@HOSPITAL', 'PATIENT@PHR_1']
