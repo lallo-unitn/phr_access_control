@@ -1,12 +1,9 @@
 # accounts/views.py
-from typing import List, Mapping
 
 from django.views.decorators.csrf import csrf_exempt
 
-from accounts.api_dummy_data.dummy import __get_test_enc_messages, __get_test_user_attr
 from accounts.services.user_service import post_user_keys, put_user_keys
 
-from ma_abe.services.ma_abe_service import MAABEService
 from django.http import JsonResponse
 
 # API Endpoint 1
