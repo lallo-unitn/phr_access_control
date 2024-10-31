@@ -11,6 +11,7 @@ class CharmMAABEHelper:
         self.__group = PairingGroup(const.PAIRING_GROUP)
         self.__ma_abe = MaabeRW15(self.__group)
         self.__public_keys = {}
+        is_setup = False
 
         # Dictionary to store auth names and corresponding attributes
         self.auth_attrs = {
@@ -21,8 +22,9 @@ class CharmMAABEHelper:
             'HEALTH_CLUB': ['HEALTHCLUBTRAINER@HEALTHCLUB']
         }
 
-        if self.__public_keys is None:
+        if not is_setup:
             self.setup()
+            self.is_setup = True
 
         for auth, attrs in self.auth_attrs.items():
             (public_key, secret_key) = self.__ma_abe.authsetup(self.__public_parameters, auth)

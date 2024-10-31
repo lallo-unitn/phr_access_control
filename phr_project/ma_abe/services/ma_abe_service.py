@@ -1,8 +1,11 @@
 import hashlib
+import json
+import base64 as b64
 from typing import List, Mapping
 
 from charm.toolbox.symcrypto import SymmetricCryptoAbstraction
 from charm.schemes.abenc.abenc_maabe_rw15 import merge_dicts
+
 from ma_abe.utils.charm_helpers import CharmMAABEHelper
 from ma_abe.utils.serial import serialize_encrypted_aes_key, deserialize_encrypted_aes_key, \
     serialize_encrypted_data, deserialize_encrypted_data
@@ -86,10 +89,27 @@ if __name__ == "__main__":
     # serialize encrypted file to JSON
     serial_enc_file = serialize_encrypted_data(sym_enc_file)
 
+    # print the serialized data
+    print(f"Serialized Encrypted file: {serial_enc_file}")
+    print(f"Serialized Encrypted AES key: {serial_abe_policy_enc_key}")
+
+    encoded_aes_key = b64.b64encode(serial_abe_policy_enc_key).decode('utf-8')
+
+    # Step 3: Create JSON payload
+    aes_json = json.dumps({"c_serial": encoded_aes_key})
+    print(aes_json)
+
+    decoded_aes_key = b64.b64decode(encoded_aes_key)
+
+    print(f"Decoded AES key: {decoded_aes_key}")
+
     # deserialize the encrypted AES key
-    deserialized_abe_policy_enc_key = deserialize_encrypted_aes_key(serial_abe_policy_enc_key, ma_abe_service.group)
+    deserialized_abe_policy_enc_key = deserialize_encrypted_aes_key(decoded_aes_key, ma_abe_service.group)
     # deserialize symmetrically encrypted file
     deserialized_enc_file = deserialize_encrypted_data(serial_enc_file)
+
+
+
 
     enc_message = {'abe_policy_enc_key': deserialized_abe_policy_enc_key, 'sym_enc_file': deserialized_enc_file}
 
