@@ -5,9 +5,10 @@ from typing import List, Mapping
 from django.http import JsonResponse
 
 from accounts.api_dummy_data.dummy import __get_test_enc_messages, __get_test_user_attr
-from accounts.models import AesKeyEncWithAbe, Message
-from ma_abe.services.ma_abe_service import MAABEService
+from accounts.services.ma_abe_service import MAABEService
 
+from accounts.models import Message, AesKeyEncWithAbe
+from accounts.utils.serial import base64_user_abe_keys
 
 def get_user_keys(request, uuid: str, message_id = None):
     if request.method == 'GET':
@@ -16,6 +17,7 @@ def get_user_keys(request, uuid: str, message_id = None):
 
         for message_id, enc_message in messages.items():
             enc_aes_keys[message_id] = enc_message['abe_policy_enc_key']
+            print(f"enc_aes_keys: {enc_aes_keys}")
 
         return JsonResponse(enc_aes_keys)
 
@@ -88,9 +90,9 @@ def get_user_record(request, uuid: str):
         return JsonResponse(enc_record)
 
 def get_user_secret_key(request, uuid: str):
+
     if request.method == 'GET':
         ma_abe_service = MAABEService()
-
         user_attrs: List = __get_test_user_attr()
         user_auth_attrs: Mapping[str, List] = {}
 
@@ -104,10 +106,18 @@ def get_user_secret_key(request, uuid: str):
         user_keys_by_auth: Mapping[str, List] = {}
 
         for auth, user_attrs in user_auth_attrs.items():
-            user_keys_by_auth[auth] = ma_abe_service.helper.gen_user_key(auth, uuid, user_attrs)
+            user_keys_by_auth[auth] = ma_abe_service.helper.gen_user_key(
+                auth=auth,
+                user_id=uuid,
+                user_attrs=user_attrs
+            )
 
         merged_user_keys = ma_abe_service.helper.merge_dicts(*user_keys_by_auth.values())
 
-        user_abe_keys = {'GID': uuid, 'keys': merged_user_keys}
+        serial_keys = base64_user_abe_keys(ma_abe_service.helper.get_pairing_group(), merged_user_keys)
+
+        user_abe_keys = {'GID': uuid, 'serial_keys': serial_keys}
+        # print(f"user_abe_keys: {user_abe_keys}")
+        # print(f"serialized keys: {serial_keys}")
 
         return JsonResponse(user_abe_keys)

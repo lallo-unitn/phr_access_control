@@ -75,3 +75,9 @@ class Message(models.Model):
         ('TRAINING', 'Training'),
     ]
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
+
+class MAABEPublicParams(models.Model):
+    id = models.AutoField(primary_key=True)
+    g1_serial = models.BinaryField()
+    g2_serial = models.BinaryField()
+    egg_serial = models.BinaryField()
