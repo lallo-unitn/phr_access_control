@@ -1,42 +1,15 @@
 # accounts/views.py
 from typing import List, Mapping
 
+from django.views.decorators.csrf import csrf_exempt
+
 from accounts.api_dummy_data.dummy import __get_test_enc_messages, __get_test_user_attr
 from accounts.models import AesKeyEncWithAbe, Message
-#from django.shortcuts import render, redirect
-#from django.contrib import messages
 
 from ma_abe.services.ma_abe_service import MAABEService
-#from .forms import UserRegisterForm
-#from django.contrib.auth import views as auth_views
-#from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 import json
-
-
-# def register(request):
-#     if request.method == 'POST':
-#         form = UserRegisterForm(request.POST)
-#         if form.is_valid():
-#             form.save()
-#             username = form.cleaned_data.get('username')
-#             messages.success(request, f'Account created for {username}! You can now log in.')
-#             return redirect('login')
-#     else:
-#         form = UserRegisterForm()
-#     return render(request, 'accounts/register.html', {'form': form})
-#
-# # Login
-# class CustomLoginView(auth_views.LoginView):
-#     template_name = 'accounts/login.html'
-#
-# # Logout
-# class CustomLogoutView(auth_views.LogoutView):
-#     template_name = 'accounts/logout.html'
-#
-# @login_required
-# def profile(request):
-#     return render(request, 'accounts/profile.html')
+import base64 as b64
 
 def get_user_secret_key(request, uuid: str):
     # API Endpoint 1
@@ -69,9 +42,10 @@ def get_user_secret_key(request, uuid: str):
 
         return JsonResponse(user_abe_keys)
 
+@csrf_exempt
 def get_user_keys(request, uuid: str, message_id = None):
     # PUT expecting a message_id and JSON { "c_serial": "R2VuZXJhdGVkU2VyaWFsRGF0YQ==" }
-    # serialized using ma_abe.utils.serial.serialize_encrypted_aes_key
+    # serialized using ma_abe.utils.serial.serialize_encrypted_aes_key and then base64 encoded
 
     # Same for POST but without message_id
 
@@ -100,9 +74,13 @@ def get_user_keys(request, uuid: str, message_id = None):
             # Validate required fields
             if 'c_serial' not in data:
                 return JsonResponse({"error": "Missing 'c_serial' field"}, status=400)
+
+            encoded_aes_key = data['c_serial']
+            decoded_aes_key = b64.b64decode(encoded_aes_key)
+
             # Create AesKeyEncWithAbe instance
             aes_key_enc_with_abe = AesKeyEncWithAbe(
-                c_serial=data['c_serial']
+                c_serial=decoded_aes_key
             )
             # Save the instance to the database
             aes_key_enc_with_abe.save()
