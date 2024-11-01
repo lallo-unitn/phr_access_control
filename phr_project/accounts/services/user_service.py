@@ -10,7 +10,7 @@ from accounts.services.ma_abe_service import MAABEService
 from accounts.models import Message, AesKeyEncWithAbe
 from accounts.utils.serial import base64_user_abe_keys
 
-def get_user_keys(request, uuid: str, message_id = None):
+def get_message_aes_key(request, uuid: str, message_id = None):
     if request.method == 'GET':
         messages: dict = __get_test_enc_messages()
         enc_aes_keys: dict = {}
@@ -21,7 +21,7 @@ def get_user_keys(request, uuid: str, message_id = None):
 
         return JsonResponse(enc_aes_keys)
 
-def post_user_keys(request, uuid, message_id = None):
+def post_message_aes_key(request, uuid, message_id = None):
     try:
         # Parse JSON data from the request body
         data = json.loads(request.body)
@@ -45,7 +45,7 @@ def post_user_keys(request, uuid, message_id = None):
         # Handle JSON parsing error
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-def put_user_keys(request, uuid, message_id = None):
+def put_message_aes_key(request, uuid, message_id = None):
     try:
         # Find the message by its ID
         try:
@@ -79,7 +79,7 @@ def put_user_keys(request, uuid, message_id = None):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-def get_user_record(request, uuid: str):
+def get_user_message(request, uuid: str):
     if request.method == 'GET':
         messages: dict = __get_test_enc_messages()
         enc_record: dict = {}
