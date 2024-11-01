@@ -12,9 +12,12 @@ from accounts.services import user_service
 #   depending on what type of person he is (e.g. Patient, Doctor)
 #
 #   The server will return the user master secret key and the user id.
-def user_secret_key(request, uuid: str):
-    return user_service.get_user_secret_key(request, uuid)
-
+@csrf_exempt
+def user_secret_key(request, uuid: str) :
+    if request.method == 'GET':
+        return user_service.get_user_secret_key(request, uuid)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
 # API Endpoint 2
 # --------------
 # PUT expecting a message_id and JSON { "c_serial": "R2VuZXJhdGVkU2VyaWFsRGF0YQ==" }
@@ -49,8 +52,15 @@ def user_message_aes_key(request, uuid: str, message_id = None):
 #
 #   For a GET request the server will return the encrypted AES keys
 #   of the requested user (if they exist).
+@csrf_exempt
 def get_user_message(request, uuid: str):
     if request.method == 'GET':
         return user_service.get_user_message(request, uuid)
+    elif request.method == 'POST':
+        return user_service.post_user_message(request, uuid)
+    elif request.method == 'PUT':
+        return user_service.put_user_message(request, uuid)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
 
 

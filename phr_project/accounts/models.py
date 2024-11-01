@@ -1,11 +1,7 @@
 from django.db import models
 
-# class UserProfile(models.Model):
-#     gid = models.CharField(max_length=50, unique=True)  # Global ID, e.g., 'bob' or 'alice'
-#     attributes = models.JSONField()  # Stores attributes for multiple domains dynamically
-#
-#     def __str__(self):
-#         return self.gid
+from accounts.utils.constants import TEST_AUTH_TYPES, TEST_REP_TYPE_CHOICES
+
 
 # Authority with Keys
 
@@ -19,41 +15,80 @@ class PubKey(models.Model):
     egga_serial = models.BinaryField()
     gy_serial = models.BinaryField()
 
+def add_authority(auth_id, serial_keys):
+    # Create Authority instance
+    authority = Authority(
+        id=auth_id,
+        name=auth_id,
+        sec_key=SecKey.objects.create(
+            alpha_serial=serial_keys['serial_secret_key_alpha'],
+            y_serial=serial_keys['serial_secret_key_y']
+        ),
+        pub_key=PubKey.objects.create(
+            egga_serial=serial_keys['serial_public_key_egga'],
+            gy_serial=serial_keys['serial_public_key_gy']
+        ),
+    )
+    # Save the instance to the database
+    authority.save()
+
 class Authority(models.Model):
-    id = models.AutoField(primary_key=True)
+    id = models.CharField(max_length=255, primary_key=True)
     name = models.CharField(max_length=255)
     sec_key = models.OneToOneField(SecKey, on_delete=models.CASCADE)
     pub_key = models.OneToOneField(PubKey, on_delete=models.CASCADE)
-    AUTHORITY_TYPE_CHOICES = [
-        ('HOSPITAL', 'Hospital'),
-        ('HEALTH_CLUB', 'Health Club'),
-        ('INSURANCE_COMPANY', 'Insurance Company'),
-        ('WORK_COMPANY', 'Work Company'),
-    ]
-    authority_type = models.CharField(max_length=20, choices=AUTHORITY_TYPE_CHOICES)
+    #authority_type = models.CharField(max_length=20, choices=TEST_AUTH_TYPES)
     attributes = models.JSONField(default=list)
 
+def add_authority_rep(rep_id, authority_id, name, rep_type, attributes):
+    try:
+        # Check if the given rep_id already exists in the Patient table
+        if Patient.objects.filter(patient_id=rep_id).exists():
+            raise ValueError(f"Cannot add AuthorityRep with ID '{rep_id}' as it already exists in Patient table.")
+
+        # Get the Authority instance
+        authority = Authority.objects.get(id=authority_id)
+
+        # Create a new AuthorityRep record
+        authority_rep = AuthorityRep.objects.create(
+            rep_id=rep_id,
+            authority=authority,
+            name=name,
+            #rep_type=rep_type,
+            attributes=attributes
+        )
+        authority_rep.save()
+
+        return authority_rep
+
+    except Authority.DoesNotExist:
+        raise ValueError(f"Authority with ID '{authority_id}' does not exist.")
+
 class AuthorityRep(models.Model):
-    rep_id = models.AutoField(primary_key=True)
+    rep_id = models.CharField(max_length=255, primary_key=True)
     authority = models.ForeignKey(Authority, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    REP_TYPE_CHOICES = [
-        ('DOCTOR', 'Doctor'),
-        ('INSURANCE_REP', 'Insurance Representative'),
-        ('WORK_REP', 'Employer'),
-        ('HEALTH_CLUB_REP', 'Health Club Representative'),
-    ]
-    rep_type = models.CharField(max_length=25, choices=REP_TYPE_CHOICES)
+    #rep_type = models.CharField(max_length=25, choices=TEST_REP_TYPE_CHOICES)
     attributes = models.JSONField(default=list)
 
 
 # Patient Models
 
+def add_patient(patient_id):
+    attribute: str = 'PATIENT@PHR_' + str(patient_id)
+    patient = Patient.objects.create(
+        patient_id=patient_id,
+        name=patient_id,
+        attributes=[attribute]
+    )
+    patient.save()
+    return patient
+
+
 class Patient(models.Model):
-    patient_id = models.AutoField(primary_key=True)
+    patient_id = models.CharField(max_length=255, primary_key=True)
     name = models.CharField(max_length=255)
     attributes = models.JSONField(default=list)
-
 
 class PatientRep(models.Model):
     rep = models.ForeignKey(AuthorityRep, on_delete=models.CASCADE)
@@ -75,6 +110,15 @@ class Message(models.Model):
         ('TRAINING', 'Training'),
     ]
     message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
+
+def add_public_params(g1_serial, g2_serial, egg_serial):
+    ma_abe_public_params = MAABEPublicParams.objects.create(
+        g1_serial=g1_serial,
+        g2_serial=g2_serial,
+        egg_serial=egg_serial
+    )
+    ma_abe_public_params.save()
+    return ma_abe_public_params
 
 class MAABEPublicParams(models.Model):
     id = models.AutoField(primary_key=True)
