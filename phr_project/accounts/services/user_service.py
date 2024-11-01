@@ -1,6 +1,8 @@
 import json
 import base64 as b64
 import random
+import base64 as b64
+
 from typing import List, Mapping
 
 from django.http import JsonResponse
@@ -9,8 +11,8 @@ from accounts.api_dummy_data.dummy import __get_test_enc_messages
 from accounts.services.ma_abe_service import MAABEService
 
 from accounts.models import Message, AesKeyEncWithAbe, Patient, add_patient, add_authority_rep, \
-    AuthorityRep, PatientRep
-from accounts.utils.constants import TEST_AUTH_ATTRS
+    AuthorityRep, PatientRep, MAABEPublicParams
+from accounts.utils.constants import TEST_AUTH_ATTRS, DEFAULT_ABE_PUBLIC_PARAMS_INDEX
 from accounts.utils.serial import base64_user_abe_keys
 
 
@@ -87,6 +89,21 @@ def __assign_auth_reps_to_patients(num_records=20):
             print(f"Skipped PatientRep: Patient ({patient.patient_id}) - Rep ({rep.rep_id}) already exists")
 
     return created_records
+
+def get_abe_public_parameters(request):
+    ma_abe_service = MAABEService()
+    # get parameters from MAABEPublicParams in model
+    public_parameters = (
+        MAABEPublicParams.objects.get(
+            id=DEFAULT_ABE_PUBLIC_PARAMS_INDEX
+        )
+    )
+    b64_serial_public_parameters = {
+        'g1_serial': b64.b64encode(public_parameters.g1_serial).decode('utf-8'),
+        'g2_serial': b64.b64encode(public_parameters.g2_serial).decode('utf-8'),
+        'egg_serial': b64.b64encode(public_parameters.egg_serial).decode('utf-8')
+    }
+    return JsonResponse(b64_serial_public_parameters)
 
 def get_user_secret_key(request, uuid: str):
     ma_abe_service = MAABEService()

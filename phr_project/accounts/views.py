@@ -6,6 +6,13 @@ from django.http import JsonResponse
 
 from accounts.services import user_service
 
+@csrf_exempt
+def abe_public_parameters(request) :
+    if request.method == 'GET':
+        return user_service.get_abe_public_parameters(request)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
 # API Endpoint 1
 # --------------
 #   The client will perform a GET request with a number from 1 to 5
