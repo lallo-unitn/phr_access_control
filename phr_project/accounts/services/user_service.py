@@ -14,28 +14,28 @@ from accounts.utils.constants import TEST_AUTH_ATTRS
 from accounts.utils.serial import base64_user_abe_keys
 
 
-def users_are_init():
+def patients_are_init():
     # Check if the Patient table is not empty
     return Patient.objects.exists()
 
-def __get_user_attrs_from_db(uuid):
+def authority_reps_are_init():
+    # Check if the AuthorityRep table is not empty
+    return AuthorityRep.objects.exists()
+
+def patient_reps_are_init():
+    # Check if the PatientRep table is not empty
+    return PatientRep.objects.exists()
+
+def __get_patients_attrs_from_db(uuid):
     # Get the user attributes from the Patient table
     user = Patient.objects.get(pk=uuid)
     return user.attributes
-
-def __users_init():
-    # Initialize 10 patients
-    __patients_init()
-    # Initialize 10 authority representatives
-    __auth_reps_init()
-    # Assign auth_reps to patients
-    __assign_auth_reps_to_patients()
 
 def __patients_init(start_id=0, end_id=9):
     # initialize 10 patients
     for i in range(start_id, end_id):
         add_patient(
-            patient_id=str(i),
+            patient_id=str(i)
         )
 
 def __auth_reps_init(start_id=10, end_id=19):
@@ -45,12 +45,18 @@ def __auth_reps_init(start_id=10, end_id=19):
     # initialize 10 authority representatives
     for i in range(start_id, end_id):
         auth_id = auth_ids.pop()
+        # append to every element in TEST_AUTH_ATTRS[auth_id], str(i)
+        auth_attr = []
+
+        for attr in TEST_AUTH_ATTRS[auth_id]:
+            auth_attr.append(attr + '_' + str(i))
+
         add_authority_rep(
             rep_id=str(i),
             authority_id= auth_id,
             name=str(i),
             rep_type=None,
-            attributes=TEST_AUTH_ATTRS[auth_id]
+            attributes=auth_attr
         )
 
 def __assign_auth_reps_to_patients(num_records=20):
@@ -85,10 +91,14 @@ def __assign_auth_reps_to_patients(num_records=20):
 def get_user_secret_key(request, uuid: str):
     ma_abe_service = MAABEService()
 
-    if not users_are_init():
-        __users_init()
+    if not patients_are_init():
+        __patients_init()
+    if not authority_reps_are_init():
+        __auth_reps_init()
+    if not patient_reps_are_init():
+        __assign_auth_reps_to_patients()
 
-    user_attrs = __get_user_attrs_from_db(uuid)
+    user_attrs = __get_patients_attrs_from_db(uuid)
 
     user_auth_attrs: Mapping[str, List] = {}
 
