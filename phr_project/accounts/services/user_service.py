@@ -1,5 +1,4 @@
 import json
-import base64 as b64
 import random
 import base64 as b64
 
@@ -99,9 +98,9 @@ def get_abe_public_parameters(request):
         )
     )
     b64_serial_public_parameters = {
-        'g1_serial': b64.b64encode(public_parameters.g1_serial).decode('utf-8'),
-        'g2_serial': b64.b64encode(public_parameters.g2_serial).decode('utf-8'),
-        'egg_serial': b64.b64encode(public_parameters.egg_serial).decode('utf-8')
+        'serial_g1': b64.b64encode(public_parameters.g1_serial).decode('utf-8'),
+        'serial_g2': b64.b64encode(public_parameters.g2_serial).decode('utf-8'),
+        'serial_egg': b64.b64encode(public_parameters.egg_serial).decode('utf-8')
     }
     return JsonResponse(b64_serial_public_parameters)
 

@@ -9,7 +9,7 @@ from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.core.engine.util import objectToBytes, bytesToObject
 
 from services.constants import SERVER_URL, API_VERSION, PAIRING_GROUP
-from services.ma_abe.ma_abe_service import MAABEService
+from services.database.database import save_public_parameters, initialize_db, save_user
 from services.serialization.serial import deserialize_user_abe_keys, deserialize_ma_abe_public_parameters
 
 # Initialize the pairing group and MAABE scheme
@@ -26,15 +26,16 @@ def get_public_parameters():
     if response.status_code == 200:
         # b64_serial_public_parameters is in form of
         # {
-            # 'g1_serial': b64.b64encode(public_parameters.g1_serial).decode('utf-8'),
-            # 'g2_serial': b64.b64encode(public_parameters.g2_serial).decode('utf-8'),
-            # 'egg_serial': b64.b64encode(public_parameters.egg_serial).decode('utf-8')
+            # 'serial_g1': b64.b64encode(public_parameters.g1_serial).decode('utf-8'),
+            # 'serial_g2': b64.b64encode(public_parameters.g2_serial).decode('utf-8'),
+            # 'serial_egg': b64.b64encode(public_parameters.egg_serial).decode('utf-8')
         # }
         b64_serial_public_parameters = response.json()
-        b64_serial_public_parameters = {k: base64.b64decode(v) for k, v in b64_serial_public_parameters.items()}
-        public_parameters = deserialize_ma_abe_public_parameters(group, b64_serial_public_parameters)
-        # Deserialize the public parameters
-
+        serial_public_parameters = {k: base64.b64decode(v) for k, v in b64_serial_public_parameters.items()}
+        # print(f"Serial public parameters: {serial_public_parameters}")
+        save_public_parameters(serial_public_parameters)
+        public_parameters = deserialize_ma_abe_public_parameters(group, serial_public_parameters)
+        return public_parameters
     else:
         print(f"Error fetching public parameters: {response.text}")
         return None, None
@@ -142,12 +143,16 @@ def decrypt_message(user_keys, abe_ciphertext_encoded, encrypted_message_encoded
 
 # Example usage
 if __name__ == "__main__":
+
+    initialize_db()
+
     # User UUID
     user_uuid = '0'  # Replace with the actual UUID
 
     # Get public parameters from the server
-
-
+    public_params = get_public_parameters()
+    # print public parameters
+    print(f"Public parameters: {public_params}")
     # Obtain user's secret keys
     print("Fetching user's secret keys...")
     user_keys = get_user_secret_key(user_uuid)
@@ -161,21 +166,21 @@ if __name__ == "__main__":
         print(f"K: {keys['K']}")
         print(f"KP: {keys['KP']}")
 
+    # Save the user's secret keys # TODO user_keys is a dictionary of attributes to keys, meaning that it does not contain only one key
+    save_user(user_uuid, user_keys) # TODO fix event in which user has more then one key for their role
+
     # Retrieve public parameters from the server or initialize them
     # For this example, we'll assume pk_global and pk_auths are obtained somehow
     # You need to fetch or initialize pk_global and pk_auths accordingly
     # For demonstration, we're initializing them here (Replace with actual fetching logic)
-    print("Initializing public parameters...")
-    pk_global = {}  # Replace with actual global public key
-    pk_auths = {}   # Replace with actual authority public keys
 
-    ma_abe_service = MAABEService()
+    #ma_abe_service = MAABEService()
 
     # Encrypt a message
-    message = "This is a secret message."
-    policy_str = '(PATIENT@PHR_' + user_uuid + ')'
-    print(f"Encrypting message under policy: {policy_str}")
-    abe_ciphertext_encoded, encrypted_message_encoded = ma_abe_service.encrypt(message, policy_str)
+    #message = "This is a secret message."
+    #policy_str = '(PATIENT@PHR_' + user_uuid + ')'
+    #print(f"Encrypting message under policy: {policy_str}")
+    #abe_ciphertext_encoded, encrypted_message_encoded = ma_abe_service.encrypt(message, policy_str)
 
     # Send the encrypted message to the server
     # print("Sending encrypted message to the server...")
