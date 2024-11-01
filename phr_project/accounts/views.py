@@ -34,13 +34,10 @@ def user_message_aes_key(request, uuid: str, message_id = None):
 
     if request.method == 'GET':
         return user_service.get_message_aes_key(request, uuid, message_id)
-
     elif request.method == 'POST':
         return user_service.post_message_aes_key(request, uuid, message_id)
-
     elif request.method == 'PUT' and message_id is not None:
         return user_service.put_message_aes_key(request, uuid, message_id)
-
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
