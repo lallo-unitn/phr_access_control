@@ -2,7 +2,7 @@ from charm.core.math.pairing import GT
 from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
 import accounts.utils.constants as const
-from accounts.models import MAABEPublicParams, Authority, SecKey, PubKey
+from accounts.models import MAABEPublicParams, Authority, add_public_params, add_authority
 from accounts.utils.serial import serialize_ma_abe_public_parameters, deserialize_ma_abe_public_parameters, \
     serialize_auth_key_pair, deserialize_auth_key_pair
 
@@ -17,17 +17,8 @@ class CharmMAABEHelper:
         self.__public_keys = {}
         self.__is_setup = False
 
-        # Dictionary to store auth names and corresponding attributes
-        self.auth_attrs: dict = {
-            'PHR': ['PATIENT@PHR'],
-            'HOSPITAL': ['DOCTOR@HOSPITAL'],
-            'INSURANCE': ['INSURANCEREP@INSURANCE'],
-            'EMPLOYER': ['EMPLOYER_REP@EMPLOYER'],
-            'HEALTH_CLUB': ['HEALTHCLUBTRAINER@HEALTHCLUB']
-        }
-
         self.__setup()
-        self.__authorities_setup(self.auth_attrs)
+        self.__authorities_setup(const.TEST_AUTH_ATTRS)
 
     def __setup(self):
         if self.__public_params_is_setup():
@@ -113,15 +104,11 @@ class CharmMAABEHelper:
             public_parameters=self.__ma_abe.setup()
         )
 
-        # Create AesKeyEncWithAbe instance
-        ma_abe_public_parameters = MAABEPublicParams(
-            id=const.DEFAULT_ABE_PUBLIC_PARAMS_INDEX,
+        add_public_params(
             g1_serial=serial_params_dict['serial_g1'],
             g2_serial=serial_params_dict['serial_g2'],
             egg_serial=serial_params_dict['serial_egg']
         )
-        # Save the instance to the database
-        ma_abe_public_parameters.save()
 
     def __load_public_parameters(self):
         try:
@@ -206,17 +193,4 @@ class CharmMAABEHelper:
             secret_key=secret_key
         )
 
-        # Create Authority instance
-        authority = Authority(
-            name=auth,
-            sec_key=SecKey.objects.create(
-                alpha_serial=serial_keys['serial_secret_key_alpha'],
-                y_serial=serial_keys['serial_secret_key_y']
-            ),
-            pub_key=PubKey.objects.create(
-                egga_serial=serial_keys['serial_public_key_egga'],
-                gy_serial=serial_keys['serial_public_key_gy']
-            ),
-        )
-        # Save the instance to the database
-        authority.save()
+        add_authority(auth_id=auth, serial_keys=serial_keys)
