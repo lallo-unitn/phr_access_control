@@ -17,17 +17,8 @@ class CharmMAABEHelper:
         self.__setup()
 
     def __setup(self):
-        if self.__public_params_is_setup():
-            # load parameters
-            self.__public_parameters = self.__load_public_parameters()
-            self.__is_setup = True
-        else:
-            # compute params
-            self.__public_parameters = self.__ma_abe.setup()
-            # save params
-            self.__save_public_parameters(self.__public_parameters)
-            self.__is_setup = True
-        # print(f"Public Parameters: {self.__public_parameters}")
+        pass
+
 
 
     def get_random_group_element(self):
