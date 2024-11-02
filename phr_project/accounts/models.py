@@ -74,7 +74,7 @@ class AuthorityRep(models.Model):
 # Patient Models
 
 def add_patient(patient_id):
-    attribute: str = 'PATIENT@PHR_' + str(patient_id)
+    attribute: str = 'PATIENT@PHR'
     patient = Patient.objects.create(
         patient_id=patient_id,
         name=patient_id,

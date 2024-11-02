@@ -5,6 +5,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 
 from accounts.services import user_service
+from accounts.services.ma_abe_service import MAABEService
+
 
 @csrf_exempt
 def abe_public_parameters(request) :

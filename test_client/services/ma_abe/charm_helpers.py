@@ -8,7 +8,6 @@ from services.serialization.serial import deserialize_auth_public_key
 
 class CharmMAABEHelper:
     def __init__(self):
-        self.__public_keys = None
         self.__key_pairs = {}
         self.__group = PairingGroup(PAIRING_GROUP)
         self.__ma_abe = MaabeRW15(self.__group)
@@ -27,6 +26,9 @@ class CharmMAABEHelper:
 
     def get_pairing_group(self):
         return self.__group
+
+    def set_auth_public_keys(self, public_keys):
+        self.__public_keys = public_keys
 
     # returns a dictionary with attribute names as keys,
     # and secret keys for the attributes as values.
@@ -50,16 +52,6 @@ class CharmMAABEHelper:
     # attr = "%s@%s" % (attribute_name, auth_name)
     def encrypt(self, msg, policy):
         from api.client import get_auth_pub_key
-        auth_id = self.__ma_abe.unpack_attribute(policy)[1]
-        serialized_auth_public_key = get_auth_pub_key(auth_id)
-
-        # print(f"Serialized Auth Public Key: {serialized_auth_public_key}")
-        # print(auth_id)
-
-        self.__public_keys[auth_id] = deserialize_auth_public_key(
-            self.__group,
-            serialized_auth_public_key
-        )
 
         return self.__ma_abe.encrypt(
             self.__public_parameters,
