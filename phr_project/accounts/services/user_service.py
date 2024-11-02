@@ -50,7 +50,7 @@ def __auth_reps_init(start_id=10, end_id=19):
         auth_attr = []
 
         for attr in TEST_AUTH_ATTRS[auth_id]:
-            auth_attr.append(attr + '_' + str(i))
+            auth_attr.append(attr)
 
         add_authority_rep(
             rep_id=str(i),
@@ -115,7 +115,7 @@ def get_user_secret_key(request, uuid: str):
         __assign_auth_reps_to_patients()
 
     user_attrs = __get_patients_attrs_from_db(uuid)
-
+    print(f"user_attrs: {user_attrs}")
     user_auth_attrs: Mapping[str, List] = {}
 
     # iterate on the user attributes
@@ -124,6 +124,7 @@ def get_user_secret_key(request, uuid: str):
         if attr_auth not in user_auth_attrs:
             user_auth_attrs[attr_auth] = []
         user_auth_attrs[attr_auth].append(user_attr)
+        print(f"user_auth_attrs: {user_auth_attrs}")
 
     user_keys_by_auth: Mapping[str, List] = {}
 
@@ -136,28 +137,71 @@ def get_user_secret_key(request, uuid: str):
 
     if len(user_keys_by_auth.keys()) >= 2:
         user_keys = ma_abe_service.helper.merge_dicts(*user_keys_by_auth.values())
+        print(f"%%%%%%%%%%%user_keys: {user_keys}")
     else:
-        user_keys = user_keys_by_auth[list(user_keys_by_auth.keys())[0]]
-        # print(f"user_keys: {user_keys}")
+        temp_user_keys = list(user_keys_by_auth.values())
+        user_keys = temp_user_keys.pop()
+        print(f"-------------user_keys: {user_keys}")
 
-    temp_abe_keys = {'GID': uuid, 'keys': user_keys}
+    # user_abe_keys = {'GID': uuid, 'keys': user_keys}
 
-    message = "This is a secret message"
-    policy = '((PATIENT@PHR_0 or DOCTOR@HOSPITAL1))'
+    # message = "This is a secret message"
+    # policy = 'PATIENT@PHR_0'
 
-    # print(f"temp_abe: {temp_abe_keys}")
-
-    # TODO fix enc/dec
     # enc_message = ma_abe_service.encrypt(message, policy)
-    # dec_message = ma_abe_service.decrypt(temp_abe_keys, enc_message)
+    # dec_message = ma_abe_service.decrypt(user_abe_keys, enc_message)
 
+    # print(f"Decrypted message: {dec_message}")
+
+    # print(f"user_keys: {user_keys}")
     serial_keys = base64_user_abe_keys(ma_abe_service.helper.get_pairing_group(), user_keys)
     user_abe_keys = {'GID': uuid, 'keys': serial_keys}
-
     # print(f"user_abe_keys: {user_abe_keys}")
-    # print(f"serialized keys: {serial_keys}")
 
     return JsonResponse(user_abe_keys)
+
+def test_get_user_secret_key(request, uuid: str):
+    ma_abe_service = MAABEService()
+
+    if not patients_are_init():
+        __patients_init()
+    if not authority_reps_are_init():
+        __auth_reps_init()
+    if not patient_reps_are_init():
+        __assign_auth_reps_to_patients()
+
+    user_attrs = __get_patients_attrs_from_db(uuid)
+    print(f"user_attrs: {user_attrs}")
+    user_auth_attrs: Mapping[str, List] = {}
+
+    # iterate on the user attributes
+    for user_attr in user_attrs:
+        attr_name, attr_auth, attr_id = ma_abe_service.helper.unpack_attribute(user_attr)
+        if attr_auth not in user_auth_attrs:
+            user_auth_attrs[attr_auth] = []
+        user_auth_attrs[attr_auth].append(user_attr)
+        print(f"user_auth_attrs: {user_auth_attrs}")
+
+    user_keys_by_auth: Mapping[str, List] = {}
+
+    for auth, user_attrs in user_auth_attrs.items():
+        user_keys_by_auth[auth] = ma_abe_service.helper.gen_user_key(
+            auth=auth,
+            user_id=uuid,
+            user_attrs=user_attrs
+        )
+
+    if len(user_keys_by_auth.keys()) >= 2:
+        user_keys = ma_abe_service.helper.merge_dicts(*user_keys_by_auth.values())
+        print(f"%%%%%%%%%%%user_keys: {user_keys}")
+    else:
+        temp_user_keys = list(user_keys_by_auth.values())
+        user_keys = temp_user_keys.pop()
+        print(f"-------------user_keys: {user_keys}")
+
+    user_abe_keys = {'GID': uuid, 'keys': user_keys}
+
+    return user_abe_keys
 
 def get_message_aes_key(request, uuid, message_id = None):
     messages: dict = __get_test_enc_messages()

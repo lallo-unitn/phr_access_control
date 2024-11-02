@@ -24,10 +24,12 @@ class CharmMAABEHelper:
         if self.__public_params_is_setup():
             # load parameters
             self.__public_parameters = self.__load_public_parameters()
+            print(f"db__public_parameters Keys: {self.__public_parameters}")
             self.__is_setup = True
         else:
             # compute params
             self.__public_parameters = self.__ma_abe.setup()
+            print(f"new__public_parameters Keys: {self.__public_parameters}")
             # save params
             self.__save_public_parameters(self.__public_parameters)
             self.__is_setup = True
@@ -53,7 +55,7 @@ class CharmMAABEHelper:
                 'secret_key': secret_key
             }
             self.__public_keys[auth] = public_key
-        print(f"Public Keys: {self.__public_keys}")
+        # print(f"Public Keys: {self.__public_keys}")
 
     def get_random_group_element(self):
         return self.__group.random(GT)
@@ -101,7 +103,7 @@ class CharmMAABEHelper:
     def __save_public_parameters(self, __public_parameters):
         serial_params_dict: dict = serialize_ma_abe_public_parameters(
             group=self.__group,
-            public_parameters=self.__ma_abe.setup()
+            public_parameters=__public_parameters
         )
 
         add_public_params(

@@ -5,11 +5,12 @@ import base64
 from charm.toolbox.pairinggroup import PairingGroup
 from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 
-from services.constants import SERVER_URL, API_VERSION, PAIRING_GROUP
+from services.constants import SERVER_URL, API_VERSION, PAIRING_GROUP, TEST_AUTH_ATTRS
 from services.database.database import db_save_public_parameters, db_initialize, db_get_user, \
     db_get_public_parameters, db_get_auth_pub_key, db_save_user, db_save_auth_pub_key
 from services.ma_abe.ma_abe_service import MAABEService
-from services.serialization.serial import deserialize_user_abe_keys, deserialize_ma_abe_public_parameters
+from services.serialization.serial import deserialize_user_abe_keys, deserialize_ma_abe_public_parameters, \
+    deserialize_auth_public_key
 
 # Initialize the pairing group and MAABE scheme
 group = PairingGroup(PAIRING_GROUP)
@@ -117,16 +118,29 @@ def get_auth_pub_key(auth_id):
         print(f"Error fetching authority public key: {response.text}")
         return None
 
-# Example usage
-if __name__ == "__main__":
-
+def init():
     db_initialize()
-
-    # User UUID
-    user_uuid = '0'  # Replace with the actual UUID
+    ma_abe_service = MAABEService()
 
     # Get public parameters from the server
     public_params = get_public_parameters()
+    auth_pub_key = {}
+    for auth_id in TEST_AUTH_ATTRS.keys():
+        auth_pub_key[auth_id] = get_auth_pub_key(auth_id)
+        # print(auth_pub_key[auth_id])
+        auth_pub_key[auth_id] = deserialize_auth_public_key(group, auth_pub_key[auth_id])
+
+    ma_abe_service.helper.set_auth_public_keys(auth_pub_key)
+
+    return public_params, ma_abe_service
+
+# Example usage
+if __name__ == "__main__":
+
+    public_params,ma_abe_service = init()
+
+    user_uuid = '0'
+
     # print public parameters
     print(f"Public parameters: {public_params}")
     # Obtain user's secret keys
@@ -139,11 +153,9 @@ if __name__ == "__main__":
 
     user_keys = deserialize_user_abe_keys(group, serial_user_keys)
 
-    ma_abe_service = MAABEService()
-
     # Encrypt a message
     message = "This is a secret message."
-    policy_str = 'PATIENT@PHR_0'
+    policy_str = 'PATIENT@PHR_0 or DOCTOR@HOSPITAL1'
     print(f"Encrypting message under policy: {policy_str}")
     enc_message = ma_abe_service.encrypt(message, policy_str)
 
