@@ -3,23 +3,24 @@ from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
 
 from services.constants import PAIRING_GROUP
+from services.serialization.serial import deserialize_auth_public_key
 
 
 class CharmMAABEHelper:
     def __init__(self):
         self.__public_keys = None
-        self.__public_parameters = None
         self.__key_pairs = {}
         self.__group = PairingGroup(PAIRING_GROUP)
         self.__ma_abe = MaabeRW15(self.__group)
         self.__is_setup = False
+        self.__public_keys = {}
 
         self.__setup()
 
     def __setup(self):
-        pass
-
-
+        from api.client import get_public_parameters
+        self.__public_parameters = get_public_parameters()
+        self.__is_setup = True
 
     def get_random_group_element(self):
         return self.__group.random(GT)
@@ -48,7 +49,22 @@ class CharmMAABEHelper:
     # NOTE THAT every attribute must be in the form of
     # attr = "%s@%s" % (attribute_name, auth_name)
     def encrypt(self, msg, policy):
-        return self.__ma_abe.encrypt(self.__public_parameters, self.__public_keys, msg, policy)
+        from api.client import get_auth_pub_key
+        auth_id = self.__ma_abe.unpack_attribute(policy)[1]
+        serialized_auth_public_key = get_auth_pub_key(auth_id)
+
+        # print(f"Serialized Auth Public Key: {serialized_auth_public_key}")
+        # print(auth_id)
+
+        self.__public_keys[auth_id] = deserialize_auth_public_key(
+            self.__group,
+            serialized_auth_public_key
+        )
+
+        return self.__ma_abe.encrypt(
+            self.__public_parameters,
+            self.__public_keys, msg, policy
+        )
 
     # raises exception when the access policy can not be
     # satisfied with the user's attributes.

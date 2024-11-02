@@ -127,3 +127,21 @@ def deserialize_user_abe_keys(group, serialized_user_keys):
         }
 
     return deserial_user_keys
+
+def deserialize_auth_public_key(group, serialized_auth_public_key):
+    b64_serial_public_key_egga = serialized_auth_public_key['b64_serial_public_key_egga']
+    b64_serial_public_key_gy = serialized_auth_public_key['b64_serial_public_key_gy']
+
+    # Decode from base64 and deserialize using the group
+    public_key_egga = group.deserialize(b64.b64decode(b64_serial_public_key_egga))
+    public_key_gy = group.deserialize(b64.b64decode(b64_serial_public_key_gy))
+
+    # Store the deserialized keys
+    deserial_public_key = {
+        'egga': public_key_egga,
+        'gy': public_key_gy
+    }
+
+    print(f"deserial_public_key: {deserial_public_key}")
+
+    return deserial_public_key

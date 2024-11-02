@@ -10,7 +10,7 @@ from accounts.api_dummy_data.dummy import __get_test_enc_messages
 from accounts.services.ma_abe_service import MAABEService
 
 from accounts.models import Message, AesKeyEncWithAbe, Patient, add_patient, add_authority_rep, \
-    AuthorityRep, PatientRep, MAABEPublicParams
+    AuthorityRep, PatientRep, MAABEPublicParams, Authority, PubKey
 from accounts.utils.constants import TEST_AUTH_ATTRS, DEFAULT_ABE_PUBLIC_PARAMS_INDEX
 from accounts.utils.serial import base64_user_abe_keys
 
@@ -225,6 +225,16 @@ def get_user_message(request, uuid: str):
 def post_user_message(request, uuid):
     return None
 
-
 def put_user_message(request, uuid):
     return None
+
+def get_auth_public_key(request, auth_id):
+    pub_key_id = Authority.objects.get(id=auth_id).pub_key_id
+    pub_key = PubKey.objects.get(id=pub_key_id)
+    b64_serial_pub_key = {
+        'b64_serial_public_key_egga': b64.b64encode(pub_key.egga_serial).decode('utf-8'),
+        'b64_serial_public_key_gy': b64.b64encode(pub_key.gy_serial).decode('utf-8')
+    }
+    return JsonResponse(b64_serial_pub_key)
+
+

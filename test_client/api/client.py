@@ -1,15 +1,14 @@
 import requests
 import json
 import base64
-import hashlib
 
 from charm.toolbox.pairinggroup import PairingGroup
-from charm.toolbox.symcrypto import SymmetricCryptoAbstraction
 from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
-from charm.core.engine.util import objectToBytes, bytesToObject
 
 from services.constants import SERVER_URL, API_VERSION, PAIRING_GROUP
-from services.database.database import save_public_parameters, initialize_db, save_user
+from services.database.database import db_save_public_parameters, db_initialize, db_get_user, \
+    db_get_public_parameters, db_get_auth_pub_key, db_save_user, db_save_auth_pub_key
+from services.ma_abe.ma_abe_service import MAABEService
 from services.serialization.serial import deserialize_user_abe_keys, deserialize_ma_abe_public_parameters
 
 # Initialize the pairing group and MAABE scheme
@@ -21,6 +20,12 @@ def get_public_parameters():
     Obtain the public parameters from the server.
     """
     url = f"{SERVER_URL}/{API_VERSION}/public_parameters"
+
+    serial_public_parameters = db_get_public_parameters()
+    if serial_public_parameters is not None:
+        public_parameters = deserialize_ma_abe_public_parameters(group, serial_public_parameters)
+        return public_parameters
+
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -32,57 +37,33 @@ def get_public_parameters():
         # }
         b64_serial_public_parameters = response.json()
         serial_public_parameters = {k: base64.b64decode(v) for k, v in b64_serial_public_parameters.items()}
-        # print(f"Serial public parameters: {serial_public_parameters}")
-        save_public_parameters(serial_public_parameters)
+        db_save_public_parameters(serial_public_parameters)
         public_parameters = deserialize_ma_abe_public_parameters(group, serial_public_parameters)
         return public_parameters
     else:
         print(f"Error fetching public parameters: {response.text}")
         return None, None
 
-def get_user_secret_key(user_uuid):
+def get_serialized_user_secret_key(user_uuid):
     """
     Obtain the user's secret key from the server.
     """
     url = f"{SERVER_URL}/{API_VERSION}/user_setup/{user_uuid}"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        data = response.json()
-        # Deserialize the keys
-        serial_keys = data['serial_keys']
-        user_keys = deserialize_user_abe_keys(
-            group=group,
-            serialized_user_keys=serial_keys
-        )
-        return user_keys
+    # search for user in the database
+    user = db_get_user(user_uuid)
+    # if user is not in the database, fetch from the server new keys and save them
+    if user is None:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            db_save_user(user_uuid, data['serial_keys'])
+            return data['serial_keys']
+        else:
+            print(f"Error fetching user secret key: {response.text}")
+            return None
     else:
-        print(f"Error fetching user secret key: {response.text}")
-        return None
+        return user['serial_keys']
 
-def encrypt_message(message, policy_str):
-    """
-    Encrypt the message under the given policy.
-    """
-    # Generate a random AES key
-    aes_key = group.random()
-    aes_key_bytes = group.serialize(aes_key)
-
-    # Encrypt the AES key using MAABE
-    abe_ciphertext = ma_abe.encrypt(pk_global, pk_auths, aes_key, policy_str)
-
-    # Serialize and encode the ABE ciphertext
-    abe_ciphertext_serialized = objectToBytes(abe_ciphertext, group)
-    abe_ciphertext_encoded = base64.b64encode(abe_ciphertext_serialized).decode('utf-8')
-
-    # Encrypt the message using the AES key
-    aes_cipher = SymmetricCryptoAbstraction(hashlib.sha256(aes_key_bytes).digest())
-    encrypted_message = aes_cipher.encrypt(message.encode('utf-8'))
-
-    # Encode the encrypted message
-    encrypted_message_encoded = base64.b64encode(encrypted_message).decode('utf-8')
-
-    return abe_ciphertext_encoded, encrypted_message_encoded
 
 def send_encrypted_message(user_uuid, abe_ciphertext_encoded, encrypted_message_encoded):
     """
@@ -117,34 +98,29 @@ def get_encrypted_messages(user_uuid):
         print(f"Error fetching messages: {response.text}")
         return None
 
-def decrypt_message(user_keys, abe_ciphertext_encoded, encrypted_message_encoded):
+def get_auth_pub_key(auth_id):
     """
-    Decrypt the encrypted message using the user's secret keys.
+    Obtain the public key of the authority from the server.
     """
-    # Decode and deserialize the ABE ciphertext
-    abe_ciphertext_serialized = base64.b64decode(abe_ciphertext_encoded)
-    abe_ciphertext = bytesToObject(abe_ciphertext_serialized, group)
+    url = f"{SERVER_URL}/{API_VERSION}/auth_public_key/{auth_id}"
 
-    # Merge user keys for decryption
-    user_secret_keys = {}
-    for attr, keys in user_keys.items():
-        user_secret_keys[attr] = keys
+    if db_get_auth_pub_key(auth_id) is not None:
+        return db_get_auth_pub_key(auth_id)
 
-    # Decrypt the AES key using MAABE
-    decrypted_aes_key = ma_abe.decrypt(pk_global, user_secret_keys, abe_ciphertext)
-    aes_key_bytes = group.serialize(decrypted_aes_key)
+    response = requests.get(url)
 
-    # Decrypt the message using the AES key
-    encrypted_message = base64.b64decode(encrypted_message_encoded)
-    aes_cipher = SymmetricCryptoAbstraction(hashlib.sha256(aes_key_bytes).digest())
-    decrypted_message = aes_cipher.decrypt(encrypted_message)
-
-    return decrypted_message.decode('utf-8')
+    if response.status_code == 200:
+        data = response.json()
+        db_save_auth_pub_key(auth_id, data)
+        return data
+    else:
+        print(f"Error fetching authority public key: {response.text}")
+        return None
 
 # Example usage
 if __name__ == "__main__":
 
-    initialize_db()
+    db_initialize()
 
     # User UUID
     user_uuid = '0'  # Replace with the actual UUID
@@ -155,9 +131,16 @@ if __name__ == "__main__":
     print(f"Public parameters: {public_params}")
     # Obtain user's secret keys
     print("Fetching user's secret keys...")
-    user_keys = get_user_secret_key(user_uuid)
-    if user_keys is None:
+    # first check if user's secret keys are in the database
+    # if not, fetch from the server and save in the database
+    serial_user_keys = get_serialized_user_secret_key(user_uuid)
+    if serial_user_keys is None:
         exit()
+
+    user_keys = deserialize_user_abe_keys(group, serial_user_keys)
+
+    # print user keys
+    print(f"User's secret keys: {user_keys}")
 
     # Print the user's secret keys
     print("User's secret keys:")
@@ -166,21 +149,18 @@ if __name__ == "__main__":
         print(f"K: {keys['K']}")
         print(f"KP: {keys['KP']}")
 
-    # Save the user's secret keys # TODO user_keys is a dictionary of attributes to keys, meaning that it does not contain only one key
-    save_user(user_uuid, user_keys) # TODO fix event in which user has more then one key for their role
-
-    # Retrieve public parameters from the server or initialize them
-    # For this example, we'll assume pk_global and pk_auths are obtained somehow
-    # You need to fetch or initialize pk_global and pk_auths accordingly
-    # For demonstration, we're initializing them here (Replace with actual fetching logic)
-
-    #ma_abe_service = MAABEService()
+    ma_abe_service = MAABEService()
 
     # Encrypt a message
-    #message = "This is a secret message."
-    #policy_str = '(PATIENT@PHR_' + user_uuid + ')'
-    #print(f"Encrypting message under policy: {policy_str}")
-    #abe_ciphertext_encoded, encrypted_message_encoded = ma_abe_service.encrypt(message, policy_str)
+    message = "This is a secret message."
+    policy_str = '(PATIENT@PHR_' + user_uuid + ')'
+    print(f"Encrypting message under policy: {policy_str}")
+    abe_ciphertext_encoded, encrypted_message_encoded = ma_abe_service.encrypt(message, policy_str)
+
+    # print the encrypted message
+    print(f"Encrypted message: {encrypted_message_encoded}")
+    # print the encrypted AES key
+    print(f"Encrypted AES key: {abe_ciphertext_encoded}")
 
     # Send the encrypted message to the server
     # print("Sending encrypted message to the server...")
