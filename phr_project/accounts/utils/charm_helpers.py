@@ -66,8 +66,8 @@ class CharmMAABEHelper:
     # for every attribute, put in dictionary {'K': K, 'KP': KP}
     # that is the secret key for the attribute for the user with identifier gid.
     def gen_user_key(self, auth, user_id, user_attrs):
-        print("Generating user key")
-        print(self.__key_pairs[auth])
+        # print("Generating user key")
+        # print(self.__key_pairs[auth])
 
         user_keys = self.__ma_abe.multiple_attributes_keygen(
             self.__public_parameters,
@@ -116,10 +116,10 @@ class CharmMAABEHelper:
                 id=const.DEFAULT_ABE_PUBLIC_PARAMS_INDEX
             )
 
-            print(f"ID: {public_param.id}")
-            print(f"g1_serial: {public_param.g1_serial}")
-            print(f"g2_serial: {public_param.g2_serial}")
-            print(f"egg_serial: {public_param.egg_serial}")
+            # print(f"ID: {public_param.id}")
+            # print(f"g1_serial: {public_param.g1_serial}")
+            # print(f"g2_serial: {public_param.g2_serial}")
+            # print(f"egg_serial: {public_param.egg_serial}")
 
             # load dict
             public_params = {

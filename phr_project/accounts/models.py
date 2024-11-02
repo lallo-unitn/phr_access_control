@@ -1,6 +1,6 @@
 from django.db import models
 
-from accounts.utils.constants import TEST_AUTH_TYPES, TEST_REP_TYPE_CHOICES
+from accounts.utils.constants import TEST_AUTH_TYPES, TEST_REP_TYPE_CHOICES, DEFAULT_ABE_PUBLIC_PARAMS_INDEX
 
 
 # Authority with Keys
@@ -111,6 +111,7 @@ class Message(models.Model):
 
 def add_public_params(g1_serial, g2_serial, egg_serial):
     ma_abe_public_params = MAABEPublicParams.objects.create(
+        id=DEFAULT_ABE_PUBLIC_PARAMS_INDEX,
         g1_serial=g1_serial,
         g2_serial=g2_serial,
         egg_serial=egg_serial

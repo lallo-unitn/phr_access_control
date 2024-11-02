@@ -39,7 +39,7 @@ def db_create_users_table(cursor):
         id TEXT PRIMARY KEY,
         username TEXT,
         password TEXT,
-        serial_keys TEXT NOT NULL
+        keys TEXT NOT NULL
     );
     """
     cursor.execute(user_table_query)
@@ -56,13 +56,13 @@ def db_create_public_parameters_table(cursor):
     """
     cursor.execute(public_params_table_query)
 
-def db_save_user(id, user_keys, username = None, password = None):
+def db_save_user(id, keys, username = None, password = None):
     connection = db_create_connection()
     cursor = connection.cursor()
-    user_keys = json.dumps(user_keys)
+    keys = json.dumps(keys)
     cursor.execute(
-        "INSERT INTO users (id, username, password, serial_keys) VALUES (?, ?, ?, ?)",
-        (id, username, password, user_keys)
+        "INSERT INTO users (id, username, password, keys) VALUES (?, ?, ?, ?)",
+        (id, username, password, keys)
     )
     connection.commit()
     connection.close()
@@ -77,7 +77,7 @@ def db_get_user(id):
     connection.close()
     if user:
         user = dict(user)
-        user["serial_keys"] = json.loads(user["serial_keys"])
+        user["keys"] = json.loads(user["keys"])
     return user
 
 def db_save_public_parameters(public_parameters):
