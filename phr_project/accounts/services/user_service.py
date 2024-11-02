@@ -133,13 +133,27 @@ def get_user_secret_key(request, uuid: str):
             user_id=uuid,
             user_attrs=user_attrs
         )
+
     if len(user_keys_by_auth.keys()) >= 2:
         user_keys = ma_abe_service.helper.merge_dicts(*user_keys_by_auth.values())
     else:
         user_keys = user_keys_by_auth[list(user_keys_by_auth.keys())[0]]
-        print(f"user_keys: {user_keys}")
+        # print(f"user_keys: {user_keys}")
+
+    temp_abe_keys = {'GID': uuid, 'keys': user_keys}
+
+    message = "This is a secret message"
+    policy = '((PATIENT@PHR_0 or DOCTOR@HOSPITAL1))'
+
+    # print(f"temp_abe: {temp_abe_keys}")
+
+    # TODO fix enc/dec
+    # enc_message = ma_abe_service.encrypt(message, policy)
+    # dec_message = ma_abe_service.decrypt(temp_abe_keys, enc_message)
+
     serial_keys = base64_user_abe_keys(ma_abe_service.helper.get_pairing_group(), user_keys)
-    user_abe_keys = {'GID': uuid, 'serial_keys': serial_keys}
+    user_abe_keys = {'GID': uuid, 'keys': serial_keys}
+
     # print(f"user_abe_keys: {user_abe_keys}")
     # print(f"serialized keys: {serial_keys}")
 
@@ -151,7 +165,7 @@ def get_message_aes_key(request, uuid, message_id = None):
 
     for message_id, enc_message in messages.items():
         enc_aes_keys[message_id] = enc_message['abe_policy_enc_key']
-        print(f"enc_aes_keys: {enc_aes_keys}")
+        # print(f"enc_aes_keys: {enc_aes_keys}")
 
     return JsonResponse(enc_aes_keys)
 

@@ -56,13 +56,13 @@ def get_serialized_user_secret_key(user_uuid):
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            db_save_user(user_uuid, data['serial_keys'])
-            return data['serial_keys']
+            db_save_user(user_uuid, data)
+            return data
         else:
             print(f"Error fetching user secret key: {response.text}")
             return None
     else:
-        return user['serial_keys']
+        return user['keys']
 
 
 def send_encrypted_message(user_uuid, abe_ciphertext_encoded, encrypted_message_encoded):
@@ -139,28 +139,18 @@ if __name__ == "__main__":
 
     user_keys = deserialize_user_abe_keys(group, serial_user_keys)
 
-    # print user keys
-    print(f"User's secret keys: {user_keys}")
-
-    # Print the user's secret keys
-    print("User's secret keys:")
-    for attr, keys in user_keys.items():
-        print(f"Attribute: {attr}")
-        print(f"K: {keys['K']}")
-        print(f"KP: {keys['KP']}")
-
     ma_abe_service = MAABEService()
 
     # Encrypt a message
     message = "This is a secret message."
-    policy_str = '(PATIENT@PHR_' + user_uuid + ')'
+    policy_str = 'PATIENT@PHR_0'
     print(f"Encrypting message under policy: {policy_str}")
-    abe_ciphertext_encoded, encrypted_message_encoded = ma_abe_service.encrypt(message, policy_str)
+    enc_message = ma_abe_service.encrypt(message, policy_str)
 
     # print the encrypted message
-    print(f"Encrypted message: {encrypted_message_encoded}")
+    print(f"Encrypted message: {enc_message}")
     # print the encrypted AES key
-    print(f"Encrypted AES key: {abe_ciphertext_encoded}")
+    print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
 
     # Send the encrypted message to the server
     # print("Sending encrypted message to the server...")
@@ -172,10 +162,10 @@ if __name__ == "__main__":
     # if messages is None:
     #     exit()
     #
-    # # Decrypt messages
-    # print("Decrypting messages...")
-    # for message_id, data in messages.items():
-    #     abe_ciphertext_encoded = data['c_serial']
-    #     encrypted_message_encoded = data['aes_enc_message']
-    #     decrypted_message = decrypt_message(user_keys, abe_ciphertext_encoded, encrypted_message_encoded)
-    #     print(f"Decrypted Message [{message_id}]: {decrypted_message}")
+
+    print(user_keys)
+
+    decrypted_message = ma_abe_service.decrypt(user_keys, enc_message)
+
+    print(f"Decrypted message: {decrypted_message}")
+

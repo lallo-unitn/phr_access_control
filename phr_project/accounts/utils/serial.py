@@ -112,7 +112,7 @@ def base64_user_abe_keys(group, user_keys):
 
 def deserialize_user_abe_keys(group, serialized_user_keys):
     deserial_user_keys: dict = {}
-    for key, value in serialized_user_keys.items():
+    for key, value in serialized_user_keys['keys'].items():
         k_serialized = value.get('K')
         kp_serialized = value.get('KP')
 
@@ -121,7 +121,7 @@ def deserialize_user_abe_keys(group, serialized_user_keys):
         kp = group.deserialize(b64.b64decode(kp_serialized))
 
         # Store the deserialized keys
-        deserial_user_keys[key] = {
+        deserial_user_keys['keys'][key] = {
             'K': k,
             'KP': kp
         }

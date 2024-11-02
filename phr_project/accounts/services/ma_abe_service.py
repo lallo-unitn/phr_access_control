@@ -20,7 +20,7 @@ class MAABEService:
         key = self.helper.get_random_group_element()
         #encrypt the AES key with the policy
         abe_policy_enc_key = self.helper.encrypt(key, policy)
-        print(f"AES KEY Encrypted with ABE key and policy: {abe_policy_enc_key}")
+        # print(f"AES KEY Encrypted with ABE key and policy: {abe_policy_enc_key}")
 
         # instantiate a symmetric enc scheme from this key
         serialized_key = self.helper.get_pairing_group().serialize(key)
