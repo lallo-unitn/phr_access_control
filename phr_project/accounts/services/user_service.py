@@ -271,17 +271,69 @@ def put_message_aes_key(request, uuid, message_id = None):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-def get_user_message(request, uuid: str):
-    messages: dict = __get_test_enc_messages()
-    enc_record: dict = {}
+def get_user_message(request, uuid: str, message_id: int):
+    # Get the message by its ID
+    try:
+        message = Message.objects.get(message_id=message_id)
+        aes_key_enc_with_abe = message.aes_key_enc_with_abe
+        b64_serial_aes_key = b64.b64encode(aes_key_enc_with_abe.c_serial).decode('utf-8')
+        b64_serial_enc_message = b64.b64encode(message.aes_enc_message).decode('utf-8')
+        message_data = {
+            'b64_serial_aes_key': b64_serial_aes_key,
+            'b64_serial_enc_message': b64_serial_enc_message,
+            'message_type': message.message_type
+        }
+        return JsonResponse(message_data)
+    except Message.DoesNotExist:
+        return JsonResponse({"error": "Message not found"}, status=404)
 
-    for message_id, enc_message in messages.items():
-        enc_record[message_id] = enc_message['sym_enc_file']
-
-    return JsonResponse(enc_record)
 
 def post_user_message(request, uuid):
-    return None
+    # data = {
+    #         'b64_serial_abe_policy_enc_key': b64_serial_abe_policy_enc_key,
+    #         'b64_serial_enc_message': b64_serial_enc_message,
+    #         'message_type': type
+    #     }
+    try:
+        # Parse JSON data from the request body
+        data = json.loads(request.body)
+        # Validate required fields
+        if 'b64_serial_abe_policy_enc_key' not in data:
+            return JsonResponse({"error": "Missing 'b64_serial_abe_policy_enc_key' field"}, status=400)
+        if 'b64_serial_enc_message' not in data:
+            return JsonResponse({"error": "Missing 'b64_serial_enc_message' field"}, status=400)
+        if 'message_type' not in data:
+            return JsonResponse({"error": "Missing 'message_type' field"}, status=400)
+
+        encoded_aes_key = data['b64_serial_abe_policy_enc_key']
+        decoded_aes_key = b64.b64decode(encoded_aes_key)
+
+        encoded_enc_message = data['b64_serial_enc_message']
+        decoded_enc_message = b64.b64decode(encoded_enc_message)
+
+        # Create AesKeyEncWithAbe instance
+        aes_key_enc_with_abe = AesKeyEncWithAbe(
+            c_serial=decoded_aes_key
+        )
+        # Save the instance to the database
+        aes_key_enc_with_abe.save()
+
+        # Create Message instance
+        message = Message(
+            aes_enc_message=decoded_enc_message,
+            message_type=data['message_type'],
+            aes_key_enc_with_abe=aes_key_enc_with_abe,
+            patient_id=uuid
+        )
+        # Save the instance to the database
+        message.save()
+        # Return success response with the created ID
+        return JsonResponse({"message": "Message created", "id": message.message_id}, status=201)
+
+    except json.JSONDecodeError:
+        # Handle JSON parsing error
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
 
 def put_user_message(request, uuid):
     return None

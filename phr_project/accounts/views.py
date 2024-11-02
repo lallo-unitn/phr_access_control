@@ -27,6 +27,7 @@ def user_secret_key(request, uuid: str) :
         return user_service.get_user_secret_key(request, uuid)
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
+
 # API Endpoint 2
 # --------------
 # PUT expecting a message_id and JSON { "c_serial": "R2VuZXJhdGVkU2VyaWFsRGF0YQ==" }
@@ -59,9 +60,9 @@ def user_message_aes_key(request, uuid: str, message_id = None):
 #   For a GET request the server will return the encrypted AES keys
 #   of the requested user (if they exist).
 @csrf_exempt
-def get_user_message(request, uuid: str):
+def user_message(request, uuid: str, message_id: int = None):
     if request.method == 'GET':
-        return user_service.get_user_message(request, uuid)
+        return user_service.get_user_message(request, uuid, message_id)
     elif request.method == 'POST':
         return user_service.post_user_message(request, uuid)
     elif request.method == 'PUT':
