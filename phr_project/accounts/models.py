@@ -37,7 +37,7 @@ class Authority(models.Model):
     name = models.CharField(max_length=255)
     sec_key = models.OneToOneField(SecKey, on_delete=models.CASCADE)
     pub_key = models.OneToOneField(PubKey, on_delete=models.CASCADE)
-    #authority_type = models.CharField(max_length=20, choices=TEST_AUTH_TYPES)
+    # authority_type = models.CharField(max_length=20, choices=TEST_AUTH_TYPES)
     attributes = models.JSONField(default=list)
 
 def add_authority_rep(rep_id, authority_id, name, rep_type, attributes):
@@ -71,7 +71,6 @@ class AuthorityRep(models.Model):
     #rep_type = models.CharField(max_length=25, choices=TEST_REP_TYPE_CHOICES)
     attributes = models.JSONField(default=list)
 
-
 # Patient Models
 
 def add_patient(patient_id):
@@ -83,7 +82,6 @@ def add_patient(patient_id):
     )
     patient.save()
     return patient
-
 
 class Patient(models.Model):
     patient_id = models.CharField(max_length=255, primary_key=True)

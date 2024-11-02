@@ -67,4 +67,9 @@ def get_user_message(request, uuid: str):
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-
+@csrf_exempt
+def auth_public_key(request, auth_id: str):
+    if request.method == 'GET':
+        return user_service.get_auth_public_key(request, auth_id)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
