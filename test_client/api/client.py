@@ -10,7 +10,8 @@ from services.database.database import db_save_public_parameters, db_initialize,
     db_get_public_parameters, db_get_auth_pub_key, db_save_user, db_save_auth_pub_key
 from services.ma_abe.ma_abe_service import MAABEService
 from services.serialization.serial import deserialize_user_abe_keys, deserialize_ma_abe_public_parameters, \
-    deserialize_auth_public_key
+    deserialize_auth_public_key, serialize_encrypted_aes_key, serialize_encrypted_data, deserialize_encrypted_aes_key, \
+    deserialize_encrypted_data
 
 # Initialize the pairing group and MAABE scheme
 group = PairingGroup(PAIRING_GROUP)
@@ -66,16 +67,24 @@ def get_serialized_user_secret_key(user_uuid):
         return user['keys']
 
 
-def send_encrypted_message(user_uuid, abe_ciphertext_encoded, encrypted_message_encoded):
+def send_encrypted_message(user_uuid, enc_message, type):
     """
     Send the encrypted AES key and encrypted message to the server.
     """
-    url = f"{SERVER_URL}/user_message_aes_key/{user_uuid}"
+    url = f"{SERVER_URL}/{API_VERSION}/user/{user_uuid}/message/0"
+
+    serial_abe_policy_enc_key = serialize_encrypted_aes_key(enc_message['abe_policy_enc_key'], group)
+    serial_enc_message = serialize_encrypted_data(enc_message['sym_enc_file'])
+
+    b64_serial_abe_policy_enc_key = base64.b64encode(serial_abe_policy_enc_key).decode('utf-8')
+    b64_serial_enc_message = base64.b64encode(serial_enc_message).decode('utf-8')
+
     data = {
-        'c_serial': abe_ciphertext_encoded,
-        'aes_enc_message': encrypted_message_encoded,
-        'message_type': 'text'  # Assuming 'text' is a valid message type
+        'b64_serial_abe_policy_enc_key': b64_serial_abe_policy_enc_key,
+        'b64_serial_enc_message': b64_serial_enc_message,
+        'message_type': type
     }
+
     headers = {'Content-Type': 'application/json'}
 
     response = requests.post(url, data=json.dumps(data), headers=headers)
@@ -85,18 +94,32 @@ def send_encrypted_message(user_uuid, abe_ciphertext_encoded, encrypted_message_
     else:
         print(f"Error sending encrypted message: {response.text}")
 
-def get_encrypted_messages(user_uuid):
+def get_encrypted_message(user_uuid, message_id):
     """
-    Retrieve encrypted messages from the server.
+    Obtain the encrypted messages from the server.
     """
-    url = f"{SERVER_URL}/get_user_message/{user_uuid}"
+
+    # message_data = {
+    #             'b64_serial_aes_key': b64_serial_aes_key,
+    #             'b64_serial_enc_message': b64_serial_enc_message,
+    #             'message_type': message.message_type
+    #         }
+
+    url = f"{SERVER_URL}/{API_VERSION}/user/{user_uuid}/message/{message_id}"
     response = requests.get(url)
 
     if response.status_code == 200:
         data = response.json()
-        return data  # This should be a dictionary of message_id to encrypted data
+        serial_abe_policy_enc_key = base64.b64decode(data['b64_serial_aes_key'])
+        serial_enc_message = base64.b64decode(data['b64_serial_enc_message'])
+        enc_message = {
+            'abe_policy_enc_key': deserialize_encrypted_aes_key(serial_abe_policy_enc_key, group),
+            'sym_enc_file': deserialize_encrypted_data(serial_enc_message)
+        }
+        type = data['message_type']
+        return enc_message, type
     else:
-        print(f"Error fetching messages: {response.text}")
+        print(f"Error fetching encrypted messages: {response.text}")
         return None
 
 def get_auth_pub_key(auth_id):
@@ -165,19 +188,23 @@ if __name__ == "__main__":
     print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
 
     # Send the encrypted message to the server
-    # print("Sending encrypted message to the server...")
-    # send_encrypted_message(user_uuid, abe_ciphertext_encoded, encrypted_message_encoded)
+    print("Sending encrypted message to the server...")
+    # send_encrypted_message(user_uuid, enc_message, "HEALTH")
     #
     # # Retrieve encrypted messages from the server
     # print("Retrieving encrypted messages...")
-    # messages = get_encrypted_messages(user_uuid)
-    # if messages is None:
-    #     exit()
+    enc_message_srv, type = get_encrypted_message(user_uuid, 2)
+    if enc_message_srv is None:
+         exit()
     #
 
-    print(user_keys)
+    # print(user_keys)
+
+    print(f"Encrypted message: {enc_message}")
+    print(f"Encrypted message: {enc_message_srv}")
 
     decrypted_message = ma_abe_service.decrypt(user_keys, enc_message)
+    decrypted_message_srv = ma_abe_service.decrypt(user_keys, enc_message_srv)
 
     print(f"Decrypted message: {decrypted_message}")
-
+    print(f"Decrypted message: {decrypted_message_srv}")
