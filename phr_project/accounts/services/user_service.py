@@ -322,7 +322,7 @@ def get_user_message(request, uuid: str, message_id: int):
         b64_serial_aes_key = b64.b64encode(aes_key_enc_with_abe.c_serial).decode('utf-8')
         b64_serial_enc_message = b64.b64encode(message.aes_enc_message).decode('utf-8')
         message_data = {
-            'b64_serial_aes_key': b64_serial_aes_key,
+            'b64_serial_abe_policy_enc_key': b64_serial_aes_key,
             'b64_serial_enc_message': b64_serial_enc_message,
             'message_type': message.message_type
         }
