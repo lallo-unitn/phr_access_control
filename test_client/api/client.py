@@ -66,7 +66,6 @@ def get_serialized_user_secret_key(user_uuid):
     else:
         return user['keys']
 
-
 def send_encrypted_message(user_uuid, enc_message, type):
     """
     Send the encrypted AES key and encrypted message to the server.
@@ -141,6 +140,22 @@ def get_auth_pub_key(auth_id):
         print(f"Error fetching authority public key: {response.text}")
         return None
 
+def get_policy(user_uuid):
+    """
+    Obtain the policy from the server.
+    """
+    url = f"{SERVER_URL}/{API_VERSION}/policy_doc_ins_emp/{user_uuid}"
+
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+        return data['policy']
+    else:
+        print(f"Error fetching policy: {response.text}")
+        return None
+
+
 def init():
     db_initialize()
     ma_abe_service = MAABEService()
@@ -170,41 +185,47 @@ if __name__ == "__main__":
     print("Fetching user's secret keys...")
     # first check if user's secret keys are in the database
     # if not, fetch from the server and save in the database
+    # serial_user_keys = get_serialized_user_secret_key('10')
     serial_user_keys = get_serialized_user_secret_key(user_uuid)
-    if serial_user_keys is None:
-        exit()
+
+    # print(f"User's secret keys: {serial_user_keys}")
+    # print(f"Rep's secret keys: {serial_rep_keys}")
+
+    # if serial_user_keys is None:
+        # exit()
 
     user_keys = deserialize_user_abe_keys(group, serial_user_keys)
 
     # Encrypt a message
     message = "This is a secret message."
-    policy_str = 'PATIENT@PHR_0 or DOCTOR@HOSPITAL1'
+    # policy_str = '(PATIENT@PHR_0 or HEALTHCLUBTRAINER@HEALTHCLUB2)'
+    policy_str = get_policy(user_uuid)
     print(f"Encrypting message under policy: {policy_str}")
     enc_message = ma_abe_service.encrypt(message, policy_str)
 
     # print the encrypted message
-    print(f"Encrypted message: {enc_message}")
+    # print(f"Encrypted message: {enc_message}")
     # print the encrypted AES key
     print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
 
     # Send the encrypted message to the server
     print("Sending encrypted message to the server...")
-    # send_encrypted_message(user_uuid, enc_message, "HEALTH")
+    send_encrypted_message(user_uuid, enc_message, "HEALTH")
     #
     # # Retrieve encrypted messages from the server
-    # print("Retrieving encrypted messages...")
-    enc_message_srv, type = get_encrypted_message(user_uuid, 2)
+    print("Retrieving encrypted messages...")
+    enc_message_srv, type = get_encrypted_message(user_uuid, 11)
     if enc_message_srv is None:
          exit()
     #
 
     # print(user_keys)
 
-    print(f"Encrypted message: {enc_message}")
-    print(f"Encrypted message: {enc_message_srv}")
+    # print(f"Encrypted message: {enc_message}")
+    # print(f"Encrypted message: {enc_message_srv}")
 
     decrypted_message = ma_abe_service.decrypt(user_keys, enc_message)
-    decrypted_message_srv = ma_abe_service.decrypt(user_keys, enc_message_srv)
+    # decrypted_message_srv = ma_abe_service.decrypt(user_keys, enc_message_srv)
 
     print(f"Decrypted message: {decrypted_message}")
-    print(f"Decrypted message: {decrypted_message_srv}")
+    # print(f"Decrypted message: {decrypted_message_srv}")

@@ -16,7 +16,6 @@ def db_create_connection():
         script_dir = Path(__file__).parent.absolute()
         database_file = script_dir / "client.db.sqlite3"
         connection = sqlite3.connect(database_file)
-        print("Successfully connected to the database")
     except Error as e:
         print(f"Error: '{e}' occurred while connecting to the database")
 
