@@ -390,26 +390,26 @@ if __name__ == "__main__":
 
     # Encrypt a message
     message = "This is a secret message."
-    # policy_str = get_policy_doc_ins_emp(user_uuid)
-    # print(f"Encrypting message under policy: {policy_str}")
-    # enc_message = ma_abe_service.encrypt(message, policy_str)
+    policy_str = get_policy_doc_ins_emp(user_uuid)
+    print(f"Encrypting message under policy: {policy_str}")
+    enc_message = ma_abe_service.encrypt(message, policy_str)
     #
     # # Print the encrypted AES key
-    # print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
+    print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
     #
     # # Send the encrypted message to the server
-    # print("Sending encrypted message to the server...")
-    # send_encrypted_message(user_uuid, enc_message, "HEALTH")
+    print("Sending encrypted message to the server...")
+    send_encrypted_message(user_uuid, enc_message, "HEALTH")
     #
     # # Retrieve encrypted messages from the server
-    # print("Retrieving encrypted messages...")
-    # enc_message_srv, message_type = get_encrypted_message(user_uuid, 11)
-    # if enc_message_srv is None:
-    #     exit("No encrypted messages retrieved from the server.")
+    print("Retrieving encrypted messages...")
+    enc_message_srv, message_type = get_encrypted_message(user_uuid, 11)
+    if enc_message_srv is None:
+        exit("No encrypted messages retrieved from the server.")
     #
-    # # Decrypt the message
-    # decrypted_message = ma_abe_service.decrypt(user_keys, enc_message_srv)
-    # print(f"Decrypted message: {decrypted_message}")
+    # Decrypt the message
+    decrypted_message = ma_abe_service.decrypt(user_keys, enc_message_srv)
+    print(f"Decrypted message: {decrypted_message}")
 
     # Post representative message
     rep_id = '11'
