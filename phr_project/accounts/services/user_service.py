@@ -32,6 +32,11 @@ def __get_patients_attrs_from_db(uuid):
     user = Patient.objects.get(pk=uuid)
     return user.attributes
 
+def __get_auth_reps_attrs_from_db(uuid):
+    # Get the user attributes from the AuthorityRep table
+    user = AuthorityRep.objects.get(pk=uuid)
+    return user.attributes
+
 def __patients_init(start_id=0, end_id=9):
     # initialize 10 patients
     for i in range(start_id, end_id):
@@ -114,7 +119,11 @@ def get_user_secret_key(request, uuid: str):
     if not patient_reps_are_init():
         __assign_auth_reps_to_patients()
 
-    user_attrs = __get_patients_attrs_from_db(uuid)
+    try:
+        user_attrs = __get_patients_attrs_from_db(uuid)
+    except Patient.DoesNotExist:
+        user_attrs = __get_auth_reps_attrs_from_db(uuid)
+
     print(f"user_attrs: {user_attrs}")
     user_auth_attrs: Mapping[str, List] = {}
 
@@ -270,6 +279,37 @@ def put_message_aes_key(request, uuid, message_id = None):
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+
+def get_policy_doc_ins_emp(request, uuid):
+    # Get user's reps
+    user_reps = PatientRep.objects.filter(patient=uuid)
+    rep_attr_list: Mapping[str, List] = {}
+    all_attrs = []
+
+    for rep in user_reps:
+        # Get the attributes list
+        attributes = rep.rep.attributes
+        rep_id_str = str(rep.rep_id)
+        # Concatenate rep_id to each attribute string
+        rep_attr_list[rep.rep_id] = [s + "_" + rep_id_str for s in attributes]
+
+    # Collect all attributes into a single list
+    for attr_list in rep_attr_list.values():
+        all_attrs.extend(attr_list)
+
+    # get patient by id
+    patient = Patient.objects.get(pk=uuid)
+    # get patient attributes
+    patient_attrs = patient.attributes
+    all_attrs.extend(patient_attrs)
+
+    # Join all attributes with ' AND ' and enclose in parentheses
+    policy = "(" + " OR ".join(all_attrs) + ")"
+
+    # return json response
+    return JsonResponse({"policy": policy}, status=200)
+
 
 def get_user_message(request, uuid: str, message_id: int):
     # Get the message by its ID

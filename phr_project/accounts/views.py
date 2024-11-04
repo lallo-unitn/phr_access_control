@@ -51,6 +51,13 @@ def user_message_aes_key(request, uuid: str, message_id = None):
     else:
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
+@csrf_exempt
+def policy_doc_ins_emp(request, uuid: str):
+    if request.method == 'GET':
+        return user_service.get_policy_doc_ins_emp(request, uuid)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
 # API Endpoint 3
 # --------------
 #   The client will either perform a GET request in order to retrieve
