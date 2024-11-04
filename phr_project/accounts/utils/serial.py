@@ -4,7 +4,7 @@ from charm.core.math.pairing import G2
 import base64 as b64
 
 
-def deserialize_encrypted_aes_key(pickled_data, group):
+def deserialize_encrypted_abe_ciphertext(pickled_data, group):
     # Unpickle the data to retrieve the original dictionary structure
     data = pickle.loads(pickled_data)
     # Convert bytes back to group elements using group.deserialize
@@ -17,7 +17,7 @@ def deserialize_encrypted_aes_key(pickled_data, group):
     return data
 
 
-def serialize_encrypted_aes_key(encrypted_data, group):
+def serialize_encrypted_abe_ciphertext(encrypted_data, group):
     # Convert group elements to bytes and then pickle the entire data structure
     serialized_data = {
         'policy': encrypted_data['policy'],

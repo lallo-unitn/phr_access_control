@@ -2,7 +2,8 @@ import json
 import random
 import base64 as b64
 
-from typing import List, Mapping
+from typing import List, Mapping, Set, Tuple
+from xml.etree.ElementTree import Element
 
 from django.http import JsonResponse
 
@@ -12,8 +13,10 @@ from accounts.services.ma_abe_service import MAABEService
 from accounts.models import Message, AesKeyEncWithAbe, Patient, add_patient, add_authority_rep, \
     AuthorityRep, PatientRep, MAABEPublicParams, Authority, PubKey
 from accounts.utils.constants import TEST_AUTH_ATTRS, DEFAULT_ABE_PUBLIC_PARAMS_INDEX
-from accounts.utils.serial import base64_user_abe_keys
+from accounts.utils.serial import base64_user_abe_keys, serialize_encrypted_abe_ciphertext
 
+ma_abe = MAABEService()
+challenge_map: Mapping[str, Tuple[Element, str, str]] = {}
 
 def patients_are_init():
     # Check if the Patient table is not empty
@@ -388,3 +391,163 @@ def get_auth_public_key(request, auth_id):
     return JsonResponse(b64_serial_pub_key)
 
 
+def get_challenge_auth_patient(request, rep_id:str, uuid: str, type:str):
+    # get patient hospitals
+    patient_rep = PatientRep.objects.filter(patient=uuid)
+    hospitals_set = set()
+
+    check_auth = ""
+    check_attr = ""
+
+    if type == "HEALTH":
+        check_auth = "HOSPITAL"
+        check_attr = "DOCTOR"
+    elif type == "TRAINING":
+        check_auth = "HEALTHCLUB"
+        check_attr = "HEALTHCLUBTRAINER"
+
+    for rep in patient_rep:
+        authority_id = rep.rep.authority_id
+        if check_auth in authority_id:
+            hospitals_set.add(authority_id)
+
+    if not hospitals_set:
+        return JsonResponse({"error": "Patient has no hospitals"}, status=400)
+
+    # Generate a random challenge
+    challenge = ma_abe.helper.get_random_group_element()
+    challenge_map[rep_id] = (challenge, uuid, type)
+    policy = "("
+    for hospital in hospitals_set:
+        policy += f"{check_attr}@{hospital} OR "
+    policy = policy[:-4] + ")"
+    encrypted_challenge = ma_abe.helper.encrypt(challenge, policy)
+
+    # serialize challenge
+    serial_challenge = serialize_encrypted_abe_ciphertext(encrypted_challenge, ma_abe.group)
+    # encode challenge
+    b64_serial_challenge = b64.b64encode(serial_challenge).decode('utf-8')
+
+    return JsonResponse({"b64_serial_challenge": b64_serial_challenge})
+
+def post_challenge_auth_patient(request, rep_id: str, uuid: str, type:str):
+    # parse JSON data from the request body
+    # data = {
+    #         'b64_serial_challenge': b64_serial_challenge,
+    #         'b64_serial_hospital_message': b64_serial_hospital_message
+    #     }
+    try:
+        data = json.loads(request.body)
+        # validate required fields
+        if 'b64_serial_challenge' not in data and 'b64_serial_hospital_message' not in data:
+            return JsonResponse({"error": "Missing 'b64_serial_challenge' field"}, status=400)
+
+        b64_serial_challenge = data['b64_serial_challenge']
+        serial_challenge = b64.b64decode(b64_serial_challenge)
+
+        # deserialize challenge
+        challenge = ma_abe.group.deserialize(serial_challenge)
+        print(f"Challenge: {challenge}")
+
+        if rep_id not in challenge_map:
+            # reset challenge
+            challenge_map[rep_id] = None
+            return JsonResponse({"error": "Challenge failed"}, status=403)
+
+        if (
+                challenge_map[rep_id][0] != challenge
+                or challenge_map[rep_id][1] != uuid
+                or challenge_map[rep_id][2] != type
+        ):
+            print(f"Challenge: {challenge}")
+            print(f"Challenge_map: {challenge_map[rep_id]}")
+            print(f"Challenge_map[0]: {challenge_map[rep_id][0]}")
+            print(f"Challenge_map[1]: {challenge_map[rep_id][1]}")
+            print(f"rep_id: {uuid}")
+            print(f"Challenge_map[2]: {challenge_map[rep_id][2]}")
+            print(f"type: {type}")
+            # reset challenge
+            challenge_map[rep_id] = None
+            return JsonResponse({"&&error": "Challenge failed"}, status=403)
+
+        b64_serial_hospital_message = data['b64_serial_rep_message']
+
+        encoded_aes_key = b64_serial_hospital_message['b64_serial_abe_policy_enc_key']
+        decoded_aes_key = b64.b64decode(encoded_aes_key)
+
+        encoded_enc_message = b64_serial_hospital_message['b64_serial_enc_message']
+        decoded_enc_message = b64.b64decode(encoded_enc_message)
+
+        # Create AesKeyEncWithAbe instance
+        aes_key_enc_with_abe = AesKeyEncWithAbe(
+            c_serial=decoded_aes_key
+        )
+        # Save the instance to the database
+        aes_key_enc_with_abe.save()
+
+        # Create Message instance
+        message = Message(
+            aes_enc_message=decoded_enc_message,
+            message_type=b64_serial_hospital_message['message_type'],
+            aes_key_enc_with_abe=aes_key_enc_with_abe,
+            patient_id=uuid
+        )
+
+        # reset challenge
+        challenge_map[rep_id] = None
+
+        # Save the instance to the database
+        message.save()
+
+        return JsonResponse({"message": "Challenge solved"}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+
+# def __get_patient_hospitals(uuid):
+#     # get patients doctors
+#     patient_rep = PatientRep.objects.filter(patient=uuid)
+#     # get rep attributes
+#     attr_set = set()
+#     for rep in patient_rep:
+#         for attr in rep.rep.attributes:
+#             print(f"rep_id_str: {attr}")
+#             if "DOCTOR" in attr:
+#                 attr_set.add(attr)
+#
+#     # print all elements in the set
+#     for element in attr_set:
+#         print(element)
+#
+#     # for every element in the set, get what is after the @
+#     hospitals = set()
+#     for element in attr_set:
+#         attr, auth, id = ma_abe.helper.unpack_attribute(element)
+#         hospitals.add(auth)
+#
+#     return hospitals
+#
+#
+# def __doctor_in_patient_doctors(doctor_attr: List[str], patient_doctors: Set[str]):
+#     # Get what is after the '@' and before the '_' in the doctor attributes
+#     doctor_hospitals = set()
+#
+#     for element in doctor_attr:
+#         attr, auth, id = ma_abe.helper.unpack_attribute(element)
+#         # Normalize by stripping whitespace and converting to lowercase
+#         doctor_hospitals.add(auth.strip().lower())
+#
+#     # Normalize patient_doctors by stripping whitespace and converting to lowercase
+#     normalized_patient_doctors = {hospital.strip().lower() for hospital in patient_doctors}
+#
+#     print("Doctor hospitals:")
+#     for element in doctor_hospitals:
+#         print(element)
+#
+#     print("Patient hospitals:")
+#     for element in normalized_patient_doctors:
+#         print(element)
+#
+#     # Check if there are any matches between doctor_hospitals and patient_doctors
+#     return not doctor_hospitals.isdisjoint(normalized_patient_doctors)
