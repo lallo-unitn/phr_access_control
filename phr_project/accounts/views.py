@@ -78,6 +78,23 @@ def user_message(request, uuid: str, message_id: int = None):
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
 @csrf_exempt
+def challenge_rep_patient(request, rep_id:str, uuid: str, type:str, message_id:int = None):
+    if request.method == 'GET':
+        return user_service.get_challenge_auth_patient(request, rep_id, uuid, type)
+    elif request.method == 'POST':
+        return user_service.post_challenge_auth_patient(request, rep_id, uuid, type)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+@csrf_exempt
+def challenge_hospital_patient(request, rep_id:str, uuid: str):
+    return challenge_rep_patient(request, rep_id, uuid, "HEALTH")
+
+@csrf_exempt
+def challenge_healthclub_patient(request, rep_id:str, uuid: str):
+    return challenge_rep_patient(request, rep_id, uuid, "TRAINING")
+
+@csrf_exempt
 def auth_public_key(request, auth_id: str):
     if request.method == 'GET':
         return user_service.get_auth_public_key(request, auth_id)
