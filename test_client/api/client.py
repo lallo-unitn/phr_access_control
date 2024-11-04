@@ -227,7 +227,7 @@ def get_challenge_hospital_patient(rep_id, patient_id, auth:str):
     Get the challenge from the server for a given doctor and patient.
 
     Args:
-        doctor_id (str): Doctor's ID.
+        rep_id (str): Representative's ID.
         patient_id (str): Patient's ID.
 
     Returns:
@@ -299,12 +299,12 @@ def post_message_auth_patient(
         print(f"Error sending message: {response.text}")
 
 
-def post_rep_message(hospital_message, doctor_id, patient_id, policy, auth, ma_abe_service):
+def post_rep_message(rep_message, doctor_id, patient_id, policy, auth, ma_abe_service):
     """
     Post a representative message to the server after decrypting the challenge.
 
     Args:
-        hospital_message (str): The message to be sent.
+        rep_message (str): The message to be sent.
         doctor_id (str): Doctor's ID.
         patient_id (str): Patient's ID.
         policy (str): Policy string for encryption.
@@ -340,7 +340,7 @@ def post_rep_message(hospital_message, doctor_id, patient_id, policy, auth, ma_a
         doctor_id,
         patient_id,
         decrypted_challenge,
-        hospital_message,
+        rep_message,
         policy,
         auth,
         ma_abe_service,
@@ -373,7 +373,7 @@ def init():
 
 
 # Example usage
-if __name__ == "__main__":
+def test():
     public_params, ma_abe_service = init()
     user_uuid = '0'
 
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     #
     # # Retrieve encrypted messages from the server
     print("Retrieving encrypted messages...")
-    enc_message_srv, message_type = get_encrypted_message(user_uuid, 11)
+    enc_message_srv, message_type = get_encrypted_message(user_uuid, 1)
     if enc_message_srv is None:
         exit("No encrypted messages retrieved from the server.")
     #
@@ -412,9 +412,51 @@ if __name__ == "__main__":
     print(f"Decrypted message: {decrypted_message}")
 
     # Post representative message
-    rep_id = '11'
-    patient_id = '4'
-    policy = '(DOCTOR@HOSPITAL1)'
-    auth = 'HEALTHCLUB1'
+    rep_id = '16'
+    patient_id = '6'
+    policy = '(DOCTOR@HOSPITAL2)'
+    auth = 'HOSPITAL2'
 
     post_rep_message(message, rep_id, patient_id, policy, auth, ma_abe_service)
+
+def main():
+    print("Loading initial state...")
+    public_params, ma_abe_service = init()
+    while True:
+        print("\nChoose a user:")
+        print("0-8 are id for patients ")
+        print("6. Get User Message")
+        print("7. Post User Message")
+        print("8. Get Policy Document")
+        print("9. Get Authority Public Key")
+        print("10. Exit")
+
+        choice = input("Enter your choice (1-10): ")
+
+        if choice == '1':
+            initialize_patients()
+        elif choice == '2':
+            initialize_authority_reps()
+        elif choice == '3':
+            assign_auth_reps_to_patients()
+        elif choice == '4':
+            get_abe_public_parameters()
+        elif choice == '5':
+            get_user_secret_key_cli()
+        elif choice == '6':
+            get_user_message_cli()
+        elif choice == '7':
+            post_user_message_cli()
+        elif choice == '8':
+            get_policy_document()
+        elif choice == '9':
+            get_authority_public_key_cli()
+        elif choice == '10':
+            print("Exiting the CLI. Goodbye!")
+            break
+        else:
+            print("Invalid choice. Please try again.")
+
+if __name__ == '__main__':
+    test()
+    # main()
