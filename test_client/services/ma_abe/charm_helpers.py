@@ -3,8 +3,6 @@ from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
 
 from services.constants import PAIRING_GROUP
-from services.serialization.serial import deserialize_auth_public_key
-
 
 class CharmMAABEHelper:
     def __init__(self):

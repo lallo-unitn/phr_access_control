@@ -291,8 +291,8 @@ def get_policy_doc_ins_emp(request, uuid):
         # Get the attributes list
         attributes = rep.rep.attributes
         rep_id_str = str(rep.rep_id)
-        # Concatenate rep_id to each attribute string
-        rep_attr_list[rep.rep_id] = [s + "_" + rep_id_str for s in attributes]
+        # Concatenate rep_id to each attribute string but only if attribute does not contain "HEALTHCLUB"
+        rep_attr_list[rep_id_str] = [f"{attr}@{rep_id_str}" for attr in attributes if "HEALTHCLUB" not in attr]
 
     # Collect all attributes into a single list
     for attr_list in rep_attr_list.values():
