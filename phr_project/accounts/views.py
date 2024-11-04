@@ -36,7 +36,7 @@ def user_secret_key(request, uuid: str):
 @csrf_exempt
 def user_message_aes_key(request, uuid: str, message_id=None):
     """
-    Handle GET, POST, and PUT requests for a user's message AES key.
+    Handle POST, and PUT requests for a user's message AES key.
 
     Args:
         request: The HTTP request object.
@@ -46,8 +46,6 @@ def user_message_aes_key(request, uuid: str, message_id=None):
     Returns:
         JsonResponse: The requested data or an error message.
     """
-    if request.method == 'GET':
-        return user_service.get_message_aes_key(request, uuid, message_id)
     if request.method == 'POST':
         return user_service.post_message_aes_key(request, uuid, message_id)
     if request.method == 'PUT' and message_id is not None:
