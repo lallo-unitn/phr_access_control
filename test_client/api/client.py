@@ -10,12 +10,27 @@ from services.database.database import db_save_public_parameters, db_initialize,
     db_get_public_parameters, db_get_auth_pub_key, db_save_user, db_save_auth_pub_key
 from services.ma_abe.ma_abe_service import MAABEService
 from services.serialization.serial import deserialize_user_abe_keys, deserialize_ma_abe_public_parameters, \
-    deserialize_auth_public_key, serialize_encrypted_aes_key, serialize_encrypted_data, deserialize_encrypted_aes_key, \
+    deserialize_auth_public_key, serialize_encrypted_abe_ciphertext, serialize_encrypted_data, deserialize_encrypted_abe_ciphertext, \
     deserialize_encrypted_data
 
 # Initialize the pairing group and MAABE scheme
 group = PairingGroup(PAIRING_GROUP)
 ma_abe = MaabeRW15(group)
+
+def __prepare_message(enc_message, type):
+    serial_abe_policy_enc_key = serialize_encrypted_abe_ciphertext(enc_message['abe_policy_enc_key'], group)
+    serial_enc_message = serialize_encrypted_data(enc_message['sym_enc_file'])
+
+    b64_serial_abe_policy_enc_key = base64.b64encode(serial_abe_policy_enc_key).decode('utf-8')
+    b64_serial_enc_message = base64.b64encode(serial_enc_message).decode('utf-8')
+
+    data = {
+        'b64_serial_abe_policy_enc_key': b64_serial_abe_policy_enc_key,
+        'b64_serial_enc_message': b64_serial_enc_message,
+        'message_type': type
+    }
+
+    return data
 
 def get_public_parameters():
     """
@@ -72,17 +87,7 @@ def send_encrypted_message(user_uuid, enc_message, type):
     """
     url = f"{SERVER_URL}/{API_VERSION}/user/{user_uuid}/message/0"
 
-    serial_abe_policy_enc_key = serialize_encrypted_aes_key(enc_message['abe_policy_enc_key'], group)
-    serial_enc_message = serialize_encrypted_data(enc_message['sym_enc_file'])
-
-    b64_serial_abe_policy_enc_key = base64.b64encode(serial_abe_policy_enc_key).decode('utf-8')
-    b64_serial_enc_message = base64.b64encode(serial_enc_message).decode('utf-8')
-
-    data = {
-        'b64_serial_abe_policy_enc_key': b64_serial_abe_policy_enc_key,
-        'b64_serial_enc_message': b64_serial_enc_message,
-        'message_type': type
-    }
+    data = __prepare_message(enc_message, type)
 
     headers = {'Content-Type': 'application/json'}
 
@@ -92,6 +97,7 @@ def send_encrypted_message(user_uuid, enc_message, type):
         print("Encrypted message sent successfully.")
     else:
         print(f"Error sending encrypted message: {response.text}")
+
 
 def get_encrypted_message(user_uuid, message_id):
     """
@@ -112,7 +118,7 @@ def get_encrypted_message(user_uuid, message_id):
         serial_abe_policy_enc_key = base64.b64decode(data['b64_serial_aes_key'])
         serial_enc_message = base64.b64decode(data['b64_serial_enc_message'])
         enc_message = {
-            'abe_policy_enc_key': deserialize_encrypted_aes_key(serial_abe_policy_enc_key, group),
+            'abe_policy_enc_key': deserialize_encrypted_abe_ciphertext(serial_abe_policy_enc_key, group),
             'sym_enc_file': deserialize_encrypted_data(serial_enc_message)
         }
         type = data['message_type']
@@ -140,7 +146,7 @@ def get_auth_pub_key(auth_id):
         print(f"Error fetching authority public key: {response.text}")
         return None
 
-def get_policy(user_uuid):
+def get_policy_doc_ins_emp(user_uuid):
     """
     Obtain the policy from the server.
     """
@@ -154,6 +160,58 @@ def get_policy(user_uuid):
     else:
         print(f"Error fetching policy: {response.text}")
         return None
+
+def post_hospital_message(hospital_message, doctor_id, patient_id, policy):
+    b64_serial_challenge_dict = get_challenge_hospital_patient(doctor_id, patient_id)
+    b64_serial_challenge = b64_serial_challenge_dict['b64_serial_challenge']
+    serial_challenge = base64.b64decode(b64_serial_challenge)
+    challenge = deserialize_encrypted_abe_ciphertext(serial_challenge, group)
+
+    ma_abe_service = MAABEService()
+    serial_doctor_keys = get_serialized_user_secret_key(doctor_id)
+    doctor_keys = deserialize_user_abe_keys(group, serial_doctor_keys)
+
+    decrypted_challenge = ma_abe_service.helper.decrypt(
+        user_keys=doctor_keys,
+        cipher_text=challenge
+    )
+
+    post_message_hospital_patient(doctor_id, patient_id, decrypted_challenge, hospital_message, policy)
+
+
+def get_challenge_hospital_patient(doctor_id, patient_id):
+    challenge_url = f"{SERVER_URL}/{API_VERSION}/doctor/{doctor_id}/patient/{patient_id}/message"
+    response = requests.get(challenge_url)
+
+    if response.status_code == 200:
+        data = response.json()
+        return data
+    else:
+        print(f"Error fetching policy: {response.text}")
+        return None
+
+def post_message_hospital_patient(doctor_id, patient_id, decrypted_challenge, hospital_message, policy):
+    challenge_url = f"{SERVER_URL}/{API_VERSION}/doctor/{doctor_id}/patient/{patient_id}/message"
+    b64_serial_challenge = base64.b64encode(group.serialize(decrypted_challenge)).decode('utf-8')
+
+    print(f"hospital_message: {hospital_message}")
+
+    enc_hospital_message = ma_abe_service.encrypt(hospital_message, policy)
+
+    b64_serial_hospital_message = __prepare_message(enc_hospital_message, 'HEALTH')
+
+    data = {
+        'b64_serial_challenge': b64_serial_challenge,
+        'b64_serial_hospital_message': b64_serial_hospital_message
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(challenge_url, data=json.dumps(data), headers=headers)
+
+    if response.status_code == 201:
+        print("Challenge sent successfully.")
+    else:
+        print(f"Error sending challenge: {response.text}")
 
 
 def init():
@@ -199,7 +257,7 @@ if __name__ == "__main__":
     # Encrypt a message
     message = "This is a secret message."
     # policy_str = '(PATIENT@PHR_0 or HEALTHCLUBTRAINER@HEALTHCLUB2)'
-    policy_str = get_policy(user_uuid)
+    policy_str = get_policy_doc_ins_emp(user_uuid)
     print(f"Encrypting message under policy: {policy_str}")
     enc_message = ma_abe_service.encrypt(message, policy_str)
 
@@ -229,3 +287,11 @@ if __name__ == "__main__":
 
     print(f"Decrypted message: {decrypted_message}")
     # print(f"Decrypted message: {decrypted_message_srv}")
+
+    doctor_id = '17'
+    patient_id = '4'
+
+    policy = '(DOCTOR@HOSPITAL1)'
+
+    post_hospital_message(message, doctor_id, patient_id, policy)
+
