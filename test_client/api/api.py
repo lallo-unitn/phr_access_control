@@ -5,19 +5,15 @@ import requests
 from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
 
-from services.constants import API_VERSION, PAIRING_GROUP, SERVER_URL, TEST_AUTH_ATTRS
+from services.constants import API_VERSION, PAIRING_GROUP, SERVER_URL
 from services.database.database import (
     db_get_auth_pub_key,
     db_get_public_parameters,
-    db_get_user,
-    db_initialize,
     db_save_auth_pub_key,
-    db_save_public_parameters,
-    db_save_user,
+    db_save_public_parameters, db_get_rep, db_get_patient, db_save_patient, db_save_rep
 )
 from services.ma_abe.ma_abe_service import MAABEService
 from services.serialization.serial import (
-    deserialize_auth_public_key,
     deserialize_encrypted_abe_ciphertext,
     deserialize_encrypted_data,
     deserialize_ma_abe_public_parameters,
@@ -90,10 +86,9 @@ def get_public_parameters():
         print(f"Error fetching public parameters: {response.text}")
         return None
 
-
-def get_serialized_user_secret_key(user_uuid):
+def get_serialized_patient_secret_key(user_uuid):
     """
-    Obtain the user's secret key from the server or from the local database.
+    Obtain the patient's secret key from the server or from the local database.
 
     Args:
         user_uuid (str): User's UUID.
@@ -101,10 +96,10 @@ def get_serialized_user_secret_key(user_uuid):
     Returns:
         dict: Serialized user's secret keys.
     """
-    url = f"{SERVER_URL}/{API_VERSION}/user_setup/{user_uuid}"
 
-    # Try to get user keys from the local database
-    user = db_get_user(user_uuid)
+    url = f"{SERVER_URL}/{API_VERSION}/patient/{user_uuid}/keys"
+    user = db_get_patient(user_uuid)
+
     if user is not None:
         return user['keys']
 
@@ -113,7 +108,36 @@ def get_serialized_user_secret_key(user_uuid):
     if response.status_code == 200:
         data = response.json()
         # Save to local database
-        db_save_user(user_uuid, data)
+        db_save_patient(user_uuid, data)
+        return data
+    else:
+        print(f"Error fetching user secret key: {response.text}")
+        return None
+
+
+def get_serialized_rep_secret_key(user_uuid):
+    """
+    Obtain the representative's secret key from the server or from the local database.
+
+    Args:
+        user_uuid (str): User's UUID.
+
+    Returns:
+        dict: Serialized user's secret keys.
+    """
+
+    url = f"{SERVER_URL}/{API_VERSION}/rep/{user_uuid}/keys"
+    user = db_get_rep(user_uuid)
+
+    if user is not None:
+        return user['keys']
+
+    # Fetch user secret keys from the server
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        # Save to local database
+        db_save_rep(user_uuid, data)
         return data
     else:
         print(f"Error fetching user secret key: {response.text}")
@@ -227,6 +251,7 @@ def get_challenge_hospital_patient(rep_id, patient_id, auth:str):
     Get the challenge from the server for a given doctor and patient.
 
     Args:
+        auth: authority
         rep_id (str): Representative's ID.
         patient_id (str): Patient's ID.
 
@@ -293,7 +318,7 @@ def post_message_auth_patient(
     headers = {'Content-Type': 'application/json'}
     response = requests.post(challenge_url, data=json.dumps(data), headers=headers)
 
-    if response.status_code == 201:
+    if response.status_code == 201 or response.status_code == 200:
         print("Message sent successfully.")
     else:
         print(f"Error sending message: {response.text}")
@@ -316,8 +341,7 @@ def post_rep_message(rep_message, doctor_id, patient_id, policy, auth, ma_abe_se
     """
 
     if "HOSPITAL" not in auth and "HEALTHCLUB" not in auth:
-        print("Invalid authority.")
-        return
+        print("The authority must be either HOSPITAL or HEALTHCLUB.")
 
     # Get challenge
     challenge_data = get_challenge_hospital_patient(doctor_id, patient_id, auth)
@@ -328,135 +352,56 @@ def post_rep_message(rep_message, doctor_id, patient_id, policy, auth, ma_abe_se
     serial_challenge = base64.b64decode(b64_serial_challenge)
     challenge = deserialize_encrypted_abe_ciphertext(serial_challenge, group)
 
-    serial_doctor_keys = get_serialized_user_secret_key(doctor_id)
-    doctor_keys = deserialize_user_abe_keys(group, serial_doctor_keys)
+    serial_rep_keys = get_serialized_rep_secret_key(doctor_id)
+    doctor_keys = deserialize_user_abe_keys(group, serial_rep_keys)
 
     decrypted_challenge = ma_abe_service.helper.decrypt(
         user_keys=doctor_keys,
         cipher_text=challenge,
     )
 
-    post_message_auth_patient(
-        doctor_id,
-        patient_id,
-        decrypted_challenge,
-        rep_message,
-        policy,
-        auth,
-        ma_abe_service,
-    )
+    try:
+        post_message_auth_patient(
+            doctor_id,
+            patient_id,
+            decrypted_challenge,
+            rep_message,
+            policy,
+            auth,
+            ma_abe_service,
+        )
+        return True
 
+    except Exception as e:
+        print(f"Error posting message: {e}")
+        return False
 
-def init():
+def get_patients_list():
     """
-    Initialize the database, MAABE service, and set authority public keys.
+    Get the list of patients from the server.
 
     Returns:
-        tuple: (public_parameters, ma_abe_service)
+        list: List of patients.
     """
-    db_initialize()
-    ma_abe_service = MAABEService()
+    url = f"{SERVER_URL}/{API_VERSION}/patients"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching patients: {response.text}")
+        return None
 
-    # Get public parameters from the server
-    public_parameters = get_public_parameters()
+def get_representatives_list():
+    """
+    Get the list of representatives from the server.
 
-    # Fetch and set authority public keys
-    auth_pub_keys = {}
-    for auth_id in TEST_AUTH_ATTRS.keys():
-        auth_pub_key_data = get_auth_pub_key(auth_id)
-        if auth_pub_key_data is not None:
-            auth_pub_keys[auth_id] = deserialize_auth_public_key(group, auth_pub_key_data)
-
-    ma_abe_service.helper.set_auth_public_keys(auth_pub_keys)
-
-    return public_parameters, ma_abe_service
-
-
-# Example usage
-def test():
-    public_params, ma_abe_service = init()
-    user_uuid = '0'
-
-    # Print public parameters
-    print(f"Public parameters: {public_params}")
-
-    # Obtain user's secret keys
-    print("Fetching user's secret keys...")
-    serial_user_keys = get_serialized_user_secret_key(user_uuid)
-    if serial_user_keys is None:
-        exit("User's secret keys could not be obtained.")
-
-    user_keys = deserialize_user_abe_keys(group, serial_user_keys)
-
-    # Encrypt a message
-    message = "This is a secret message."
-    policy_str = get_policy_doc_ins_emp(user_uuid)
-    print(f"Encrypting message under policy: {policy_str}")
-    enc_message = ma_abe_service.encrypt(message, policy_str)
-    #
-    # # Print the encrypted AES key
-    print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
-    #
-    # # Send the encrypted message to the server
-    print("Sending encrypted message to the server...")
-    send_encrypted_message(user_uuid, enc_message, "HEALTH")
-    #
-    # # Retrieve encrypted messages from the server
-    print("Retrieving encrypted messages...")
-    enc_message_srv, message_type = get_encrypted_message(user_uuid, 1)
-    if enc_message_srv is None:
-        exit("No encrypted messages retrieved from the server.")
-    #
-    # Decrypt the message
-    decrypted_message = ma_abe_service.decrypt(user_keys, enc_message_srv)
-    print(f"Decrypted message: {decrypted_message}")
-
-    # Post representative message
-    rep_id = '16'
-    patient_id = '6'
-    policy = '(DOCTOR@HOSPITAL2)'
-    auth = 'HOSPITAL2'
-
-    post_rep_message(message, rep_id, patient_id, policy, auth, ma_abe_service)
-
-def main():
-    print("Loading initial state...")
-    public_params, ma_abe_service = init()
-    while True:
-        print("\nChoose a user:")
-        print("0-8 are id for patients ")
-        print("6. Get User Message")
-        print("7. Post User Message")
-        print("8. Get Policy Document")
-        print("9. Get Authority Public Key")
-        print("10. Exit")
-
-        choice = input("Enter your choice (1-10): ")
-
-        if choice == '1':
-            initialize_patients()
-        elif choice == '2':
-            initialize_authority_reps()
-        elif choice == '3':
-            assign_auth_reps_to_patients()
-        elif choice == '4':
-            get_abe_public_parameters()
-        elif choice == '5':
-            get_user_secret_key_cli()
-        elif choice == '6':
-            get_user_message_cli()
-        elif choice == '7':
-            post_user_message_cli()
-        elif choice == '8':
-            get_policy_document()
-        elif choice == '9':
-            get_authority_public_key_cli()
-        elif choice == '10':
-            print("Exiting the CLI. Goodbye!")
-            break
-        else:
-            print("Invalid choice. Please try again.")
-
-if __name__ == '__main__':
-    test()
-    # main()
+    Returns:
+        list: List of representatives.
+    """
+    url = f"{SERVER_URL}/{API_VERSION}/representatives"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching representatives: {response.text}")
+        return None

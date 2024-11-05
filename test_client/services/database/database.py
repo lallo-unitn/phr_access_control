@@ -35,7 +35,7 @@ def db_create_auth_pub_keys_table(cursor: sqlite3.Cursor) -> None:
     """
     cursor.execute(query)
 
-def db_create_users_table(cursor: sqlite3.Cursor) -> None:
+def db_create_patients_table(cursor: sqlite3.Cursor) -> None:
     """
     Create the 'users' table if it does not exist.
 
@@ -43,7 +43,24 @@ def db_create_users_table(cursor: sqlite3.Cursor) -> None:
         cursor (sqlite3.Cursor): The database cursor.
     """
     query = """
-    CREATE TABLE IF NOT EXISTS users(
+    CREATE TABLE IF NOT EXISTS patients(
+        id TEXT PRIMARY KEY,
+        username TEXT,
+        password TEXT,
+        keys TEXT NOT NULL
+    );
+    """
+    cursor.execute(query)
+
+def db_create_reps_table(cursor: sqlite3.Cursor) -> None:
+    """
+    Create the 'reps' table if it does not exist.
+
+    Args:
+        cursor (sqlite3.Cursor): The database cursor.
+    """
+    query = """
+    CREATE TABLE IF NOT EXISTS reps(
         id TEXT PRIMARY KEY,
         username TEXT,
         password TEXT,
@@ -69,7 +86,7 @@ def db_create_public_parameters_table(cursor: sqlite3.Cursor) -> None:
     """
     cursor.execute(query)
 
-def db_save_user(user_id: str, keys: dict, username: str = None, password: str = None) -> None:
+def db_save_patient(user_id: str, keys: dict, username: str = None, password: str = None) -> None:
     """
     Save a user to the database.
 
@@ -84,13 +101,13 @@ def db_save_user(user_id: str, keys: dict, username: str = None, password: str =
         cursor = connection.cursor()
         keys_json = json.dumps(keys)
         cursor.execute(
-            "INSERT INTO users (id, username, password, keys) VALUES (?, ?, ?, ?)",
+            "INSERT INTO patients (id, username, password, keys) VALUES (?, ?, ?, ?)",
             (user_id, username, password, keys_json)
         )
         connection.commit()
         connection.close()
 
-def db_get_user(user_id: str) -> dict:
+def db_get_patient(user_id: str) -> dict:
     """
     Retrieve a user from the database.
 
@@ -104,7 +121,51 @@ def db_get_user(user_id: str) -> dict:
     if connection:
         connection.row_factory = sqlite3.Row
         cursor = connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE id=?", (user_id,))
+        cursor.execute("SELECT * FROM patients WHERE id=?", (user_id,))
+        user = cursor.fetchone()
+        connection.close()
+        if user:
+            user = dict(user)
+            user["keys"] = json.loads(user["keys"])
+            return user
+    return None
+
+def db_save_rep(user_id: str, keys: dict, username: str = None, password: str = None) -> None:
+    """
+    Save a representative to the database.
+
+    Args:
+        user_id (str): The representative's ID.
+        keys (dict): The representative's keys.
+        username (str, optional): The representative's username.
+        password (str, optional): The representative's password.
+    """
+    connection = db_create_connection()
+    if connection:
+        cursor = connection.cursor()
+        keys_json = json.dumps(keys)
+        cursor.execute(
+            "INSERT INTO reps (id, username, password, keys) VALUES (?, ?, ?, ?)",
+            (user_id, username, password, keys_json)
+        )
+        connection.commit()
+        connection.close()
+
+def db_get_rep(user_id: str) -> dict:
+    """
+    Retrieve a representative from the database.
+
+    Args:
+        user_id (str): The representative's ID.
+
+    Returns:
+        dict: The representative's data, including keys, or None if the representative does not exist.
+    """
+    connection = db_create_connection()
+    if connection:
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM reps WHERE id=?", (user_id,))
         user = cursor.fetchone()
         connection.close()
         if user:
@@ -204,7 +265,8 @@ def db_initialize() -> None:
         cursor = connection.cursor()
         try:
             db_create_public_parameters_table(cursor)
-            db_create_users_table(cursor)
+            db_create_patients_table(cursor)
+            db_create_reps_table(cursor)
             db_create_auth_pub_keys_table(cursor)
             print("Database initialized successfully.")
         except Error as e:

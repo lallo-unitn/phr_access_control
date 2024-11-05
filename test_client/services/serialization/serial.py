@@ -141,6 +141,6 @@ def deserialize_auth_public_key(group, serialized_auth_public_key):
         'gy': public_key_gy
     }
 
-    print(f"deserial_public_key: {deserial_public_key}")
+    # print(f"deserial_public_key: {deserial_public_key}")
 
     return deserial_public_key

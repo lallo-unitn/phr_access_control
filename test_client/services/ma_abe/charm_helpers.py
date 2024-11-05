@@ -15,7 +15,7 @@ class CharmMAABEHelper:
         self.__setup()
 
     def __setup(self):
-        from api.client import get_public_parameters
+        from api.api import get_public_parameters
         self.__public_parameters = get_public_parameters()
         self.__is_setup = True
 
@@ -49,7 +49,6 @@ class CharmMAABEHelper:
     # NOTE THAT every attribute must be in the form of
     # attr = "%s@%s" % (attribute_name, auth_name)
     def encrypt(self, msg, policy):
-        from api.client import get_auth_pub_key
 
         return self.__ma_abe.encrypt(
             self.__public_parameters,
