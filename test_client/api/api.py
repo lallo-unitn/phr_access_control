@@ -144,27 +144,96 @@ def get_serialized_rep_secret_key(user_uuid):
         return None
 
 
-def send_encrypted_message(user_uuid, enc_message, message_type):
+def get_challenge_patient(patient_id):
+
+    challenge_url = f"{SERVER_URL}/{API_VERSION}/phr/{patient_id}/message"
+
+    response = requests.get(challenge_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching challenge: {response.text}")
+        return None
+
+
+def post_message_patient(user_uuid, decrypted_challenge, message, policy, ma_abe_service, message_type):
+
+    challenge_url = f"{SERVER_URL}/{API_VERSION}/phr/{user_uuid}/message"
+
+    b64_serial_challenge = base64.b64encode(group.serialize(decrypted_challenge)).decode('utf-8')
+    print(f"Patient message: {message}")
+    enc_message = ma_abe_service.encrypt(message, policy)
+    b64_serial_rep_message = prepare_message(enc_message, message_type)
+
+    data = {
+        'b64_serial_challenge': b64_serial_challenge,
+        'b64_serial_rep_message': b64_serial_rep_message,
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(challenge_url, data=json.dumps(data), headers=headers)
+
+    if response.status_code == 201 or response.status_code == 200:
+        print("Message sent successfully.")
+        return True
+    else:
+        print(f"Error sending message: {response.text}")
+        return False
+
+
+def send_message(user_uuid, write_to_uuid, message, message_type, ma_abe_service, policy):
     """
     Send the encrypted AES key and encrypted message to the server.
 
     Args:
+        write_to_uuid: the ID of the patient to write to
+        policy: policy string
         user_uuid (str): User's UUID.
-        enc_message (dict): Encrypted message components.
+        message: Encrypted message components.
         message_type (str): Type of the message.
+        ma_abe_service (MAABEService): Instance of MAABEService.
 
     Returns:
         None
     """
-    url = f"{SERVER_URL}/{API_VERSION}/user/{user_uuid}/message/0"
-    data = prepare_message(enc_message, message_type)
-    headers = {'Content-Type': 'application/json'}
+    # Get challenge
+    challenge_data = get_challenge_patient(write_to_uuid)
+    b64_serial_challenge = challenge_data['b64_serial_challenge']
+    serial_challenge = base64.b64decode(b64_serial_challenge)
+    challenge = deserialize_encrypted_abe_ciphertext(serial_challenge, group)
 
-    response = requests.post(url, data=json.dumps(data), headers=headers)
-    if response.status_code == 201:
-        print("Encrypted message sent successfully.")
-    else:
-        print(f"Error sending encrypted message: {response.text}")
+    serial_patient_keys = get_serialized_patient_secret_key(user_uuid)
+    patient_keys = deserialize_user_abe_keys(group, serial_patient_keys)
+
+    decrypted_challenge = ma_abe_service.helper.decrypt(
+        user_keys=patient_keys,
+        cipher_text=challenge,
+    )
+
+    try:
+        return post_message_patient(
+            user_uuid=write_to_uuid,
+            decrypted_challenge=decrypted_challenge,
+            message=message,
+            policy=policy,
+            message_type=message_type,
+            ma_abe_service=ma_abe_service
+        )
+
+    except Exception as e:
+        print(f"Error posting message: {e}")
+        return False
+
+    # if not challenge_data:
+    #     return
+    # data = prepare_message(enc_message, message_type)
+    # headers = {'Content-Type': 'application/json'}
+    #
+    # response = requests.post(url, data=json.dumps(data), headers=headers)
+    # if response.status_code == 201:
+    #     print("Encrypted message sent successfully.")
+    # else:
+    #     print(f"Error sending encrypted message: {response.text}")
 
 
 def get_encrypted_message(user_uuid, message_id):
@@ -303,11 +372,8 @@ def post_message_auth_patient(
         return
 
     b64_serial_challenge = base64.b64encode(group.serialize(decrypted_challenge)).decode('utf-8')
-
     print(f"Representative message: {rep_message}")
-
     enc_rep_message = ma_abe_service.encrypt(rep_message, policy)
-
     b64_serial_rep_message = prepare_message(enc_rep_message, message_type)
 
     data = {
@@ -345,8 +411,9 @@ def post_rep_message(rep_message, doctor_id, patient_id, policy, auth, ma_abe_se
 
     # Get challenge
     challenge_data = get_challenge_hospital_patient(doctor_id, patient_id, auth)
+    print(f"Challenge data: {challenge_data}")
     if not challenge_data:
-        return
+        return False
 
     b64_serial_challenge = challenge_data['b64_serial_challenge']
     serial_challenge = base64.b64decode(b64_serial_challenge)

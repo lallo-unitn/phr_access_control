@@ -20,6 +20,7 @@ from accounts.utils.serial import base64_user_abe_keys, serialize_encrypted_abe_
 
 # A mapping to store challenges for authentication
 challenge_map: Mapping[str, Tuple[Element, str, str]] = {}
+challenge_patient_map: Mapping[str, Tuple[Element, str, str]] = {}
 
 def patients_are_init():
     """Check if the Patient table is not empty."""
@@ -480,3 +481,67 @@ def get_representatives(request):
     for rep in reps:
         rep_data[rep.rep_id] = rep.attributes
     return JsonResponse(rep_data)
+
+
+def get_challenge_patient(request, patient_id):
+
+    ma_abe = MAABEService()
+    # Generate a random challenge
+    challenge = ma_abe.helper.get_random_group_element()
+    challenge_patient_map[patient_id] = (challenge, patient_id, "PHR")
+    policy = f"(PATIENT{patient_id}@PHR)"
+    print(f"Policy: {policy}")
+    encrypted_challenge = ma_abe.helper.encrypt(challenge, policy)
+    print(f"Encrypted Challenge: {encrypted_challenge}")
+
+    # Serialize challenge
+    serial_challenge = serialize_encrypted_abe_ciphertext(encrypted_challenge, ma_abe.group)
+    # Encode challenge
+    b64_serial_challenge = b64.b64encode(serial_challenge).decode('utf-8')
+
+    return JsonResponse({"b64_serial_challenge": b64_serial_challenge})
+
+
+def post_challenge_patient(request, patient_id):
+    try:
+        print("============================================================")
+        data = json.loads(request.body)
+        # Validate required fields
+        if 'b64_serial_challenge' not in data or 'b64_serial_rep_message' not in data:
+            return JsonResponse({"error": "Missing fields"}, status=400)
+
+        b64_serial_challenge = data['b64_serial_challenge']
+        serial_challenge = b64.b64decode(b64_serial_challenge)
+        ma_abe = MAABEService()
+        # Deserialize challenge
+        challenge = ma_abe.group.deserialize(serial_challenge)
+        print(f"Challenge: {challenge}")
+
+        if patient_id not in challenge_patient_map:
+            # Reset challenge
+            challenge_patient_map[patient_id] = None
+            return JsonResponse({"error": "Challenge failed"}, status=403)
+
+        if (
+                challenge_patient_map[patient_id][0] != challenge
+                or challenge_patient_map[patient_id][1] != patient_id
+                or challenge_patient_map[patient_id][2] != "PHR"
+        ):
+            # Reset challenge
+            challenge_patient_map[patient_id] = None
+            return JsonResponse({"error": "Challenge failed"}, status=403)
+
+        b64_serial_rep_message = data['b64_serial_rep_message']
+
+        message = craft_message(b64_serial_rep_message, patient_id)
+
+        # Reset challenge
+        challenge_patient_map[patient_id] = None
+
+        # Save the instance to the database
+        message.save()
+
+        return JsonResponse({"message": "Challenge solved"}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)

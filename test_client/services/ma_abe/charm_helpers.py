@@ -53,7 +53,9 @@ class CharmMAABEHelper:
 
         return self.__ma_abe.encrypt(
             self.__public_parameters,
-            self.__public_keys, msg, policy
+            self.__public_keys,
+            msg,
+            policy
         )
 
     # raises exception when the access policy can not be

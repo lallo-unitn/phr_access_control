@@ -201,3 +201,11 @@ def representatives(request):
     if request.method == 'GET':
         return user_service.get_representatives(request)
     return JsonResponse({"error": "Method not allowed"}, status=405)
+
+@csrf_exempt
+def challenge_phr_patient(request, patient_id: str):
+    if request.method == 'GET':
+        return user_service.get_challenge_patient(request, patient_id)
+    if request.method == 'POST':
+        return user_service.post_challenge_patient(request, patient_id)
+    return JsonResponse({"error": "Method not allowed"}, status=405)
