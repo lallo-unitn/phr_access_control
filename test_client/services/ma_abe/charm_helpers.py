@@ -15,7 +15,7 @@ class CharmMAABEHelper:
         self.__setup()
 
     def __setup(self):
-        from api.client import get_public_parameters
+        from api.api import get_public_parameters
         self.__public_parameters = get_public_parameters()
         self.__is_setup = True
 
@@ -34,6 +34,7 @@ class CharmMAABEHelper:
     # that is the secret key for the attribute for the user with identifier gid.
     def gen_user_key(self, auth, user_id, user_attrs):
         print("Generating user key")
+        print(self.__key_pairs)
         print(self.__key_pairs[auth])
 
         user_keys = self.__ma_abe.multiple_attributes_keygen(
@@ -49,11 +50,12 @@ class CharmMAABEHelper:
     # NOTE THAT every attribute must be in the form of
     # attr = "%s@%s" % (attribute_name, auth_name)
     def encrypt(self, msg, policy):
-        from api.client import get_auth_pub_key
 
         return self.__ma_abe.encrypt(
             self.__public_parameters,
-            self.__public_keys, msg, policy
+            self.__public_keys,
+            msg,
+            policy
         )
 
     # raises exception when the access policy can not be

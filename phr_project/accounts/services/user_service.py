@@ -2,7 +2,7 @@ import json
 import random
 import base64 as b64
 
-from typing import List, Mapping, Tuple
+from typing import List, Mapping, Tuple, Set
 from xml.etree.ElementTree import Element
 
 from django.http import JsonResponse
@@ -13,12 +13,14 @@ from accounts.models import (
     Message, AesKeyEncWithAbe, Patient, add_patient, add_authority_rep,
     AuthorityRep, PatientRep, MAABEPublicParams, Authority, PubKey
 )
-from accounts.utils.constants import TEST_AUTH_ATTRS, DEFAULT_ABE_PUBLIC_PARAMS_INDEX
+from accounts.utils.constants import TEST_AUTH_ATTRS, DEFAULT_ABE_PUBLIC_PARAMS_INDEX, NUMBER_OF_REPS, \
+    ATTRIBUTES_PER_REP, NUMBER_OF_USERS
 from accounts.utils.serial import base64_user_abe_keys, serialize_encrypted_abe_ciphertext
 
 
 # A mapping to store challenges for authentication
 challenge_map: Mapping[str, Tuple[Element, str, str]] = {}
+challenge_patient_map: Mapping[str, Tuple[Element, str, str]] = {}
 
 def patients_are_init():
     """Check if the Patient table is not empty."""
@@ -42,32 +44,37 @@ def __get_auth_reps_attrs_from_db(uuid):
     user = AuthorityRep.objects.get(pk=uuid)
     return user.attributes
 
-def __patients_init(start_id=0, end_id=9):
-    """Initialize patients in the database with IDs from start_id to end_id."""
-    for i in range(start_id, end_id):
+def __patients_init():
+    """Initialize patients in the database with IDs from 0 to number_of_users."""
+    for i in range(NUMBER_OF_USERS):
         add_patient(
             patient_id=str(i)
         )
 
-def __auth_reps_init(start_id=10, end_id=19):
-    """Initialize authority representatives in the database with IDs from start_id to end_id."""
+
+def __auth_reps_init():
     auth_ids = list(TEST_AUTH_ATTRS.keys())
-    for i in range(start_id, end_id):
-        auth_id = auth_ids.pop()
-        auth_attr = []
+    # Remove 'PHR' from the list of authority IDs
+    auth_ids.remove("PHR")
 
-        for attr in TEST_AUTH_ATTRS[auth_id]:
-            auth_attr.append(attr)
+    for i in range(NUMBER_OF_REPS):
+        # Initialize a set to store unique attributes
+        auth_attr_set: Set[str] = set()
 
+        while len(auth_attr_set) < ATTRIBUTES_PER_REP:
+            # Randomly select an authority ID
+            auth_id = random.choice(auth_ids)
+            # Randomly select an attribute from the selected authority
+            attr = random.choice(TEST_AUTH_ATTRS[auth_id])
+            auth_attr_set.add(attr)
+
+        # Add the representative to the database
         add_authority_rep(
-            rep_id=str(i),
-            authority_id=auth_id,
-            name=str(i),
-            rep_type=None,
-            attributes=auth_attr
+            name=f"test_name_{i}",
+            attributes=list(auth_attr_set)
         )
 
-def __assign_auth_reps_to_patients(num_records=20):
+def __assign_auth_reps_to_patients():
     """Assign authority representatives to patients randomly."""
     # Get all Patient and AuthorityRep records
     patients = list(Patient.objects.all())
@@ -79,7 +86,7 @@ def __assign_auth_reps_to_patients(num_records=20):
 
     created_records = []
 
-    for _ in range(num_records):
+    for _ in range(NUMBER_OF_REPS):
         # Randomly choose a patient and an authority representative
         patient = random.choice(patients)
         rep = random.choice(reps)
@@ -111,7 +118,7 @@ def get_abe_public_parameters(request):
     }
     return JsonResponse(b64_serial_public_parameters)
 
-def get_user_secret_key(request, uuid: str):
+def get_patient_secret_key(request, uuid: str, is_rep: bool):
     """
     Generate and return the user's secret key based on their attributes.
 
@@ -120,19 +127,11 @@ def get_user_secret_key(request, uuid: str):
     """
     ma_abe_service = MAABEService()
 
-    # Initialize data if necessary
-    if not patients_are_init():
-        __patients_init()
-    if not authority_reps_are_init():
-        __auth_reps_init()
-    if not patient_reps_are_init():
-        __assign_auth_reps_to_patients()
-
     # Retrieve user attributes
-    try:
-        user_attrs = __get_patients_attrs_from_db(uuid)
-    except Patient.DoesNotExist:
+    if is_rep:
         user_attrs = __get_auth_reps_attrs_from_db(uuid)
+    else:
+        user_attrs = __get_patients_attrs_from_db(uuid)
 
     print(f"user_attrs: {user_attrs}")
     user_auth_attrs: Mapping[str, List] = {}
@@ -375,7 +374,7 @@ def get_challenge_auth_patient(request, rep_id: str, uuid: str, type: str):
     """
     # Get patient representatives
     patient_rep = PatientRep.objects.filter(patient=uuid)
-    hospitals_set = set()
+    auth_set = set()
 
     check_auth = ""
     check_attr = ""
@@ -388,18 +387,20 @@ def get_challenge_auth_patient(request, rep_id: str, uuid: str, type: str):
         check_attr = "HEALTHCLUBTRAINER"
 
     for rep in patient_rep:
-        authority_id = rep.rep.authority_id
-        if check_auth in authority_id:
-            hospitals_set.add(authority_id)
+        rep_attributes = rep.rep.attributes
+        for attribute in rep_attributes:
+            authority_id = attribute.split('@')[1]
+            if check_auth in authority_id:
+                auth_set.add(authority_id)
 
-    if not hospitals_set:
+    if not auth_set:
         return JsonResponse({"error": "Patient has no hospitals"}, status=400)
 
     ma_abe = MAABEService()
     # Generate a random challenge
     challenge = ma_abe.helper.get_random_group_element()
     challenge_map[rep_id] = (challenge, uuid, type)
-    policy = "(" + " OR ".join(f"{check_attr}@{hospital}" for hospital in hospitals_set) + ")"
+    policy = "(" + " OR ".join(f"{check_attr}@{auth}" for auth in auth_set) + ")"
     encrypted_challenge = ma_abe.helper.encrypt(challenge, policy)
 
     # Serialize challenge
@@ -448,6 +449,94 @@ def post_challenge_auth_patient(request, rep_id: str, uuid: str, type: str):
 
         # Reset challenge
         challenge_map[rep_id] = None
+
+        # Save the instance to the database
+        message.save()
+
+        return JsonResponse({"message": "Challenge solved"}, status=200)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+
+def get_patients(request):
+    """
+    Retrieve and return all patients from the database.
+
+    Returns a list of patient IDs.
+    """
+    patients = Patient.objects.all()
+    patient_ids = [patient.patient_id for patient in patients]
+    return JsonResponse({"patients": patient_ids})
+
+
+def get_representatives(request):
+    """
+    Retrieve and return all representatives from the database.
+
+    Returns a list of representative IDs and their associated attribute lists
+    """
+    reps = AuthorityRep.objects.all()
+    rep_data = {}
+    for rep in reps:
+        rep_data[rep.rep_id] = rep.attributes
+    return JsonResponse(rep_data)
+
+
+def get_challenge_patient(request, patient_id):
+
+    ma_abe = MAABEService()
+    # Generate a random challenge
+    challenge = ma_abe.helper.get_random_group_element()
+    challenge_patient_map[patient_id] = (challenge, patient_id, "PHR")
+    policy = f"(PATIENT{patient_id}@PHR)"
+    print(f"Policy: {policy}")
+    encrypted_challenge = ma_abe.helper.encrypt(challenge, policy)
+    print(f"Encrypted Challenge: {encrypted_challenge}")
+
+    # Serialize challenge
+    serial_challenge = serialize_encrypted_abe_ciphertext(encrypted_challenge, ma_abe.group)
+    # Encode challenge
+    b64_serial_challenge = b64.b64encode(serial_challenge).decode('utf-8')
+
+    return JsonResponse({"b64_serial_challenge": b64_serial_challenge})
+
+
+def post_challenge_patient(request, patient_id):
+    try:
+        print("============================================================")
+        data = json.loads(request.body)
+        # Validate required fields
+        if 'b64_serial_challenge' not in data or 'b64_serial_rep_message' not in data:
+            return JsonResponse({"error": "Missing fields"}, status=400)
+
+        b64_serial_challenge = data['b64_serial_challenge']
+        serial_challenge = b64.b64decode(b64_serial_challenge)
+        ma_abe = MAABEService()
+        # Deserialize challenge
+        challenge = ma_abe.group.deserialize(serial_challenge)
+        print(f"Challenge: {challenge}")
+
+        if patient_id not in challenge_patient_map:
+            # Reset challenge
+            challenge_patient_map[patient_id] = None
+            return JsonResponse({"error": "Challenge failed"}, status=403)
+
+        if (
+                challenge_patient_map[patient_id][0] != challenge
+                or challenge_patient_map[patient_id][1] != patient_id
+                or challenge_patient_map[patient_id][2] != "PHR"
+        ):
+            # Reset challenge
+            challenge_patient_map[patient_id] = None
+            return JsonResponse({"error": "Challenge failed"}, status=403)
+
+        b64_serial_rep_message = data['b64_serial_rep_message']
+
+        message = craft_message(b64_serial_rep_message, patient_id)
+
+        # Reset challenge
+        challenge_patient_map[patient_id] = None
 
         # Save the instance to the database
         message.save()

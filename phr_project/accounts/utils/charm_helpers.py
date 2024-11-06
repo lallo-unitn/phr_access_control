@@ -68,15 +68,25 @@ class CharmMAABEHelper:
     # for every attribute, put in dictionary {'K': K, 'KP': KP}
     # that is the secret key for the attribute for the user with identifier gid.
     def gen_user_key(self, auth, user_id, user_attrs):
-        # print("Generating user key")
-        # print(self.__key_pairs[auth])
+
+        user_attrs_no_id = user_attrs
+        # Add user_id to every element in user_attrs
+        user_attrs_with_id = [f"{attr.split('@')[0]}{user_id}@{attr.split('@')[1]}" for attr in user_attrs]
+        print(f"User Attributes: {user_attrs_with_id}")
+
+        # union of user_attrs and user_attrs_no_id
+        user_attrs_all = list(set(user_attrs_no_id + user_attrs_with_id))
+
+        print(f"User Attributes All: {user_attrs_all}")
 
         user_keys = self.__ma_abe.multiple_attributes_keygen(
             self.__public_parameters,
             self.__key_pairs[auth]['secret_key'],
             user_id,
-            user_attrs
+            user_attrs_all
         )
+
+        print(f"User Keys: {user_keys}")
         return user_keys
 
     # encrypt the message and return in the form
