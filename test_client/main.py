@@ -99,6 +99,7 @@ def login(patients_list, representatives_list):
         print("Select login for patient or representative")
         print("1. Patient")
         print("2. Representative")
+        print("3. Exit")
 
         login = input("Enter your choice: ")
         uuid = None
@@ -125,6 +126,8 @@ def login(patients_list, representatives_list):
                     print(f"\t\t{attr}")
                     attr_list.append(attr)
             uuid = input("Enter representative id: ")
+        elif login == "3":
+            exit()
 
     return uuid, user_type, attr_list
 
