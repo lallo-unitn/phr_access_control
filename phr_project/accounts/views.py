@@ -15,11 +15,19 @@ def abe_public_parameters(request):
         return user_service.get_abe_public_parameters(request)
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
+def patients(request):
+    """
+    Handle GET requests to obtain a list of patients.
+    """
+    if request.method == 'GET':
+        return user_service.get_patients(request)
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
 
 @csrf_exempt
-def user_secret_key(request, uuid: str):
+def patient_secret_key(request, uuid: str):
     """
-    Handle GET requests to obtain a user's secret key.
+    Handle GET requests to obtain a patient's secret key.
 
     Args:
         request: The HTTP request object.
@@ -29,9 +37,24 @@ def user_secret_key(request, uuid: str):
         JsonResponse: The user's secret key or an error message.
     """
     if request.method == 'GET':
-        return user_service.get_user_secret_key(request, uuid)
+        return user_service.get_patient_secret_key(request, uuid, False)
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
+@csrf_exempt
+def rep_secret_key(request, uuid:str):
+    """
+        Handle GET requests to obtain a rep's secret key.
+
+        Args:
+            request: The HTTP request object.
+            uuid (str): The user's UUID.
+
+        Returns:
+            JsonResponse: The user's secret key or an error message.
+        """
+    if request.method == 'GET':
+        return user_service.get_patient_secret_key(request, uuid, True)
+    return JsonResponse({"error": "Method not allowed"}, status=405)
 
 @csrf_exempt
 def user_message_aes_key(request, uuid: str, message_id=None):
@@ -162,4 +185,19 @@ def auth_public_key(request, auth_id: str):
     """
     if request.method == 'GET':
         return user_service.get_auth_public_key(request, auth_id)
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
+
+def representatives(request):
+    """
+    Handle GET requests to obtain a list of representatives.
+
+    Args:
+        request: The HTTP request object.
+
+    Returns:
+        JsonResponse: The list of representatives or an error message.
+    """
+    if request.method == 'GET':
+        return user_service.get_representatives(request)
     return JsonResponse({"error": "Method not allowed"}, status=405)

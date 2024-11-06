@@ -71,6 +71,10 @@ class CharmMAABEHelper:
         # print("Generating user key")
         # print(self.__key_pairs[auth])
 
+        # loop on user attributes
+        for attr in user_attrs:
+            attr += f"_{user_id}"
+
         user_keys = self.__ma_abe.multiple_attributes_keygen(
             self.__public_parameters,
             self.__key_pairs[auth]['secret_key'],
