@@ -163,6 +163,7 @@ def send_encrypted_message(user_uuid, enc_message, message_type):
     response = requests.post(url, data=json.dumps(data), headers=headers)
     if response.status_code == 201:
         print("Encrypted message sent successfully.")
+        print("Message ID: ", response.json()['id'])
     else:
         print(f"Error sending encrypted message: {response.text}")
 

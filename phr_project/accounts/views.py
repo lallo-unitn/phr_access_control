@@ -163,3 +163,33 @@ def auth_public_key(request, auth_id: str):
     if request.method == 'GET':
         return user_service.get_auth_public_key(request, auth_id)
     return JsonResponse({"error": "Method not allowed"}, status=405)
+
+@csrf_exempt
+def get_all_patients(request):
+    """
+    Handle GET requests to retrieve list of all patients
+
+    Args:
+        request: The HTTP request object
+    
+    Returns:
+        JsonResponse: The list of patients
+    """
+    return JsonResponse({
+        "patients": [i for i in range(9)]
+    })
+
+@csrf_exempt
+def get_all_reps(request):
+    """
+    Handle GET requests to retrieve list of all patients
+
+    Args:
+        request: The HTTP request object
+    
+    Returns:
+        JsonResponse: The list of patients
+    """
+    return JsonResponse({
+        "representatives_list": [f"Patient_{i}" for i in range(9)]
+    })
