@@ -406,9 +406,6 @@ def post_rep_message(rep_message, doctor_id, patient_id, policy, auth, ma_abe_se
         None
     """
 
-    if "HOSPITAL" not in auth and "HEALTHCLUB" not in auth:
-        print("The authority must be either HOSPITAL or HEALTHCLUB.")
-
     # Get challenge
     challenge_data = get_challenge_hospital_patient(doctor_id, patient_id, auth)
     print(f"Challenge data: {challenge_data}")
