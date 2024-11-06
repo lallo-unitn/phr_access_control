@@ -1,6 +1,6 @@
 from django.db import models
 
-from accounts.utils.constants import TEST_AUTH_TYPES, TEST_REP_TYPE_CHOICES, DEFAULT_ABE_PUBLIC_PARAMS_INDEX
+from accounts.utils.constants import DEFAULT_ABE_PUBLIC_PARAMS_INDEX
 
 
 # Authority with Keys
@@ -40,19 +40,10 @@ class Authority(models.Model):
     # authority_type = models.CharField(max_length=20, choices=TEST_AUTH_TYPES)
     attributes = models.JSONField(default=list)
 
-def add_authority_rep(rep_id, authority_id, name, rep_type, attributes):
+def add_authority_rep(name, attributes, rep_id=None, rep_type=None, authority_id=None):
     try:
-        # Check if the given rep_id already exists in the Patient table
-        if Patient.objects.filter(patient_id=rep_id).exists():
-            raise ValueError(f"Cannot add AuthorityRep with ID '{rep_id}' as it already exists in Patient table.")
-
-        # Get the Authority instance
-        authority = Authority.objects.get(id=authority_id)
-
         # Create a new AuthorityRep record
         authority_rep = AuthorityRep.objects.create(
-            rep_id=rep_id,
-            authority=authority,
             name=name,
             #rep_type=rep_type,
             attributes=attributes
@@ -61,14 +52,15 @@ def add_authority_rep(rep_id, authority_id, name, rep_type, attributes):
 
         return authority_rep
 
-    except Authority.DoesNotExist:
-        raise ValueError(f"Authority with ID '{authority_id}' does not exist.")
+    except Exception as e:
+        print(e)
+        return None
 
 class AuthorityRep(models.Model):
-    rep_id = models.CharField(max_length=255, primary_key=True)
-    authority = models.ForeignKey(Authority, on_delete=models.CASCADE)
+    rep_id = models.AutoField(primary_key=True)
+    # authority = models.ForeignKey(Authority, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    #rep_type = models.CharField(max_length=25, choices=TEST_REP_TYPE_CHOICES)
+    # rep_type = models.CharField(max_length=25, choices=TEST_REP_TYPE_CHOICES)
     attributes = models.JSONField(default=list)
 
 # Patient Models

@@ -2,7 +2,7 @@ from charm.schemes.abenc.abenc_maabe_rw15 import MaabeRW15
 from charm.toolbox.pairinggroup import PairingGroup
 
 from api.api import get_public_parameters, get_auth_pub_key, get_policy_doc_ins_emp, \
-    send_encrypted_message, get_encrypted_message, post_rep_message, get_patients_list, get_representatives_list, \
+    send_message, get_encrypted_message, post_rep_message, get_patients_list, get_representatives_list, \
     get_serialized_patient_secret_key, get_serialized_rep_secret_key
 from services.constants import TEST_AUTH_ATTRS, PAIRING_GROUP
 from services.database.database import (
@@ -46,49 +46,54 @@ def init():
 # Example usage
 def test():
     public_params, ma_abe_service = init()
-    user_uuid = '0'
+    user_uuid_writer = '0'
+    user_uuid_reader = '1'
 
     # Print public parameters
     print(f"Public parameters: {public_params}")
 
     # Obtain user's secret keys
     print("Fetching user's secret keys...")
-    serial_user_keys = get_serialized_patient_secret_key(user_uuid)
-    if serial_user_keys is None:
+    serial_user_keys_writer = get_serialized_patient_secret_key(user_uuid_writer)
+    serial_user_keys_reader = get_serialized_patient_secret_key(user_uuid_reader)
+    if user_uuid_writer is None:
         exit("User's secret keys could not be obtained.")
 
-    user_keys = deserialize_user_abe_keys(group, serial_user_keys)
+    user_keys_writer = deserialize_user_abe_keys(group, serial_user_keys_writer)
+    user_keys_reader = deserialize_user_abe_keys(group, serial_user_keys_reader)
 
     # Encrypt a message
     message = "This is a secret message."
-    policy_str = get_policy_doc_ins_emp(user_uuid)
-    print(f"Encrypting message under policy: {policy_str}")
-    enc_message = ma_abe_service.encrypt(message, policy_str)
+    # policy_str = get_policy_doc_ins_emp(user_keys_writer)
+    # print(f"Encrypting message under policy: {policy_str}")
+    policy = '(PATIENT1@PHR)'
+    enc_message = ma_abe_service.encrypt(message, policy)
     #
     # # Print the encrypted AES key
     print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
     #
     # # Send the encrypted message to the server
     print("Sending encrypted message to the server...")
-    send_encrypted_message(user_uuid, enc_message, "HEALTH")
+    # send_encrypted_message(user_uuid_writer, enc_message, "HEALTH")
     #
     # # Retrieve encrypted messages from the server
-    print("Retrieving encrypted messages...")
-    enc_message_srv, message_type = get_encrypted_message(user_uuid, 1)
-    if enc_message_srv is None:
-        exit("No encrypted messages retrieved from the server.")
+    # print("Retrieving encrypted messages...")
+    # enc_message_srv, message_type = get_encrypted_message(user_uuid_reader, 9)
+    # if enc_message_srv is None:
+        # exit("No encrypted messages retrieved from the server.")
     #
     # Decrypt the message
-    decrypted_message = ma_abe_service.decrypt(user_keys, enc_message_srv)
+    print(f"User keys writer: {user_keys_writer}")
+    decrypted_message = ma_abe_service.decrypt(user_keys_reader, enc_message)
     print(f"Decrypted message: {decrypted_message}")
 
     # Post representative message
-    rep_id = '16'
-    patient_id = '6'
-    policy = '(DOCTOR@HOSPITAL2)'
-    auth = 'HOSPITAL2'
+    # rep_id = '16'
+    # patient_id = '6'
+    # policy = '(DOCTOR@HOSPITAL2)'
+    # auth = 'HOSPITAL2'
 
-    post_rep_message(message, rep_id, patient_id, policy, auth, ma_abe_service)
+    # post_rep_message(message, rep_id, patient_id, policy, auth, ma_abe_service)
 
 def login(patients_list, representatives_list):
 
@@ -150,19 +155,20 @@ def write_phr_message(ma_abe_service, user_uuid):
     print("Insert message in PHR")
     message = input("Enter message: ")
     policy = input("Enter policy: ")
+    write_to_uuid = input(f"Enter ID of the user to write to (only the ID of the current user works [{user_uuid}]): ")
     message_type = input("Enter message type (HEALTH or TRAINING): ")
     if message_type not in ["HEALTH", "TRAINING"]:
         print("Invalid message type.")
-    try:
-        # encrypt message
-        enc_message = ma_abe_service.encrypt(message, policy)
-    except Exception as e:
-        print(f"Error encrypting message: {e}")
-        return False
+    # try:
+    #     # encrypt message
+    #     enc_message = ma_abe_service.encrypt(message, policy)
+    # except Exception as e:
+    #     print(f"Error encrypting message: {e}")
+    #     return False
     try:
         # send encrypted message to server
-        send_encrypted_message(user_uuid, enc_message, message_type)
-        return True
+        return send_message(user_uuid, write_to_uuid, message, message_type, ma_abe_service, policy)
+
     except Exception as e:
         print(f"Error sending encrypted message: {e}")
         return False
@@ -184,6 +190,7 @@ def read_phr_message(ma_abe_service, user_uuid, user_keys):
         return None
 
     try:
+        print(f"User keys: {user_keys}")
         decrypted_message = ma_abe_service.decrypt(user_keys, enc_message)
     except Exception as e:
         print(f"Error decrypting message: {e}")
@@ -215,7 +222,7 @@ def patient_actions(ma_abe_service, user_uuid, user_keys):
 def write_phr_message_as_rep(ma_abe_service, rep_uuid, auth):
     message = input("Enter message: ")
     patient_id = input("Enter patient id: ")
-    patient_policy = "(PATIENT@PHR_" + patient_id + ")"
+    patient_policy = "(PATIENT" + patient_id + "@PHR)"
     return post_rep_message(
         message,
         rep_uuid,
@@ -290,7 +297,6 @@ def main():
         else:
             print("Invalid user type.")
             break
-
 
 
 if __name__ == '__main__':

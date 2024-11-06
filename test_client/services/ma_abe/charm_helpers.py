@@ -34,6 +34,7 @@ class CharmMAABEHelper:
     # that is the secret key for the attribute for the user with identifier gid.
     def gen_user_key(self, auth, user_id, user_attrs):
         print("Generating user key")
+        print(self.__key_pairs)
         print(self.__key_pairs[auth])
 
         user_keys = self.__ma_abe.multiple_attributes_keygen(
@@ -52,7 +53,9 @@ class CharmMAABEHelper:
 
         return self.__ma_abe.encrypt(
             self.__public_parameters,
-            self.__public_keys, msg, policy
+            self.__public_keys,
+            msg,
+            policy
         )
 
     # raises exception when the access policy can not be
