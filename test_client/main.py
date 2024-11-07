@@ -219,7 +219,7 @@ def patient_actions(ma_abe_service, user_uuid, user_keys):
 def write_phr_message_as_rep(ma_abe_service, rep_uuid, auth):
     message = input("Enter message: ")
     patient_id = input("Enter patient id: ")
-    patient_policy = "(PATIENT" + patient_id + "@PHR)"
+    patient_policy = input("Enter the message policy: ")
     return post_rep_message(
         message,
         rep_uuid,

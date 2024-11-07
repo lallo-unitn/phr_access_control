@@ -1,0 +1,27 @@
+@startuml Initial_Setup
+
+actor Patient
+entity Client
+entity Database
+entity Server
+
+Patient -> Client : Login as Patient 0
+
+alt [Database_Initialized]
+    Client -> Database : Retrieve public params, patient key
+else
+    Client -> Server : GET /api/v1/public_parameters
+    Server --> Client: MA-ABE public params
+
+    loop [Foreach_authority]
+        Client -> Server : GET /api/v1/auth_public_key/[AUTHORITY]
+        Server --> Client: Authority public key
+    end
+
+    Client -> Server : GET /api/v1/patient/0/keys
+    Server --> Client: Key for PATIENT@PHR, PATIENT0@PHR
+
+    Client -> Database : Store data
+end
+
+@enduml

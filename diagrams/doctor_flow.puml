@@ -1,0 +1,24 @@
+@startuml Doctor_Flow
+
+actor Doctor
+entity Client
+entity Server
+entity Database
+
+Doctor -> Client : Write patient data
+Client -> Client : Message details
+Doctor -> Client : Message, patientID, authorityID
+
+Client -> Server : GET /api/v1/hospital/1/patient/0/message
+Server -> Server : Generate Challenge
+Server --> Client : Challenge
+
+alt [Challenge_Successfull]
+    Client -> Client : Decrypt challennge
+    Client -> Server : POST /api/v1/hospital/1/patient/0/message
+
+    Server -> Server : Validate challenge response
+    Server -> Database : Write message
+end
+
+@enduml

@@ -1,0 +1,28 @@
+@startuml Patient_Flow
+
+actor Patient
+entity Client
+entity Server
+entity Database
+
+alt [Write_message]
+    Patient -> Client : Write message
+    Client -> Client : Ask message details
+    Patient -> Client : Message, Policy, Type
+
+    Client -> Server : POST /api/v1/phr/0/message
+    Server -> Database : Store message
+else
+    Patient -> Client : Read message
+    Client -> Client : Message ID
+    Patient -> Client : Message ID
+
+    Client -> Server : GET /api/v1/phr/0/message/[ID]
+    Server -> Database : Retrieve message
+    Database --> Server : message
+    Server --> Client : message
+
+    Client -> Client : Decrypt message
+    Client -> Client : Display plaintext or error
+end
+@enduml
