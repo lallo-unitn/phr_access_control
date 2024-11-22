@@ -44,57 +44,6 @@ def init():
 
 
 # Example usage
-def test():
-    public_params, ma_abe_service = init()
-    user_uuid_writer = '0'
-    user_uuid_reader = '1'
-
-    # Print public parameters
-    print(f"Public parameters: {public_params}")
-
-    # Obtain user's secret keys
-    print("Fetching user's secret keys...")
-    serial_user_keys_writer = get_serialized_patient_secret_key(user_uuid_writer)
-    serial_user_keys_reader = get_serialized_patient_secret_key(user_uuid_reader)
-    if user_uuid_writer is None:
-        exit("User's secret keys could not be obtained.")
-
-    user_keys_writer = deserialize_user_abe_keys(group, serial_user_keys_writer)
-    user_keys_reader = deserialize_user_abe_keys(group, serial_user_keys_reader)
-
-    # Encrypt a message
-    message = "This is a secret message."
-    # policy_str = get_policy_doc_ins_emp(user_keys_writer)
-    # print(f"Encrypting message under policy: {policy_str}")
-    policy = '(PATIENT1@PHR)'
-    enc_message = ma_abe_service.encrypt(message, policy)
-    #
-    # # Print the encrypted AES key
-    print(f"Encrypted AES key: {enc_message['abe_policy_enc_key']}")
-    #
-    # # Send the encrypted message to the server
-    print("Sending encrypted message to the server...")
-    # send_encrypted_message(user_uuid_writer, enc_message, "HEALTH")
-    #
-    # # Retrieve encrypted messages from the server
-    # print("Retrieving encrypted messages...")
-    # enc_message_srv, message_type = get_encrypted_message(user_uuid_reader, 9)
-    # if enc_message_srv is None:
-        # exit("No encrypted messages retrieved from the server.")
-    #
-    # Decrypt the message
-    print(f"User keys writer: {user_keys_writer}")
-    decrypted_message = ma_abe_service.decrypt(user_keys_reader, enc_message)
-    print(f"Decrypted message: {decrypted_message}")
-
-    # Post representative message
-    # rep_id = '16'
-    # patient_id = '6'
-    # policy = '(DOCTOR@HOSPITAL2)'
-    # auth = 'HOSPITAL2'
-
-    # post_rep_message(message, rep_id, patient_id, policy, auth, ma_abe_service)
-
 def login(patients_list, representatives_list):
 
     valid = False
