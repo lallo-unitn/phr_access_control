@@ -16,7 +16,7 @@ urlpatterns = [
     path('api/v1/hospital/<str:rep_id>/patient/<str:uuid>/message', views.challenge_hospital_patient, name='Hospital_patient_challenge'),
     path('api/v1/healthclub/<str:rep_id>/patient/<str:uuid>/message', views.challenge_healthclub_patient, name='Healthclub_patient_challenge'),
 
-    path('api/v1/phr/<str:patient_id>/message', views.challenge_phr_patient, name='PHR_patient_challenge')
+    path('api/v1/phr/<str:patient_id>/message', views.challenge_phr_patient, name='PHR_patient_challenge'),
 
     path('api/v1/patients', views.get_all_patients, name='Get_List_Of_Patients'),
     path('api/v1/representatives', views.get_all_reps, name='Get_List_Of_Representatives'),
