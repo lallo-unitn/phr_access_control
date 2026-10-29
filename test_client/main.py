@@ -114,13 +114,13 @@ def write_phr_message(ma_abe_service, user_uuid):
     # except Exception as e:
     #     print(f"Error encrypting message: {e}")
     #     return False
-    try:
+    ##try:
         # send encrypted message to server
-        return send_message(user_uuid, write_to_uuid, message, message_type, ma_abe_service, policy)
+    return send_message(user_uuid, write_to_uuid, message, message_type, ma_abe_service, policy)
 
-    except Exception as e:
-        print(f"Error sending encrypted message: {e}")
-        return False
+    ##except Exception as e:
+        ##print(f"Error sending encrypted message: {e}")
+        ##return False
 
 
 def read_phr_message(ma_abe_service, user_uuid, user_keys):
